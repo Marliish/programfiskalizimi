@@ -1,0 +1,732 @@
+// ============================================
+// ADVANCED POS FEATURES - 50 Features
+// Team: Tafa, Mela, Gesa
+// Date: 2026-02-23
+// ============================================
+
+// ============================================
+// SPLIT PAYMENTS (10 features)
+// ============================================
+
+model SplitPayment {
+  id            String @id @default(uuid())
+  transactionId String @map("transaction_id")
+  tenantId      String @map("tenant_id")
+
+  paymentMethod String @map("payment_method") // cash, card, mobile, bank_transfer
+  amount        Decimal @db.Decimal(10, 2)
+
+  // Card specific
+  cardLastFour String? @map("card_last_four")
+  cardType     String? @map("card_type") // visa, mastercard, amex
+
+  // Reference
+  referenceNumber    String? @map("reference_number")
+  authorizationCode  String? @map("authorization_code")
+
+  // Status
+  status String @default("completed") // completed, pending, reversed, refunded
+
+  // Metadata
+  notes    String?
+  metadata Json    @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  transaction Transaction        @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reversals   PaymentReversal[]
+
+  @@index([transactionId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("split_payments")
+}
+
+model PaymentReversal {
+  id             String @id @default(uuid())
+  splitPaymentId String @map("split_payment_id")
+  tenantId       String @map("tenant_id")
+
+  reversalType String  @map("reversal_type") // full, partial
+  amount       Decimal @db.Decimal(10, 2)
+
+  reason String?
+  notes  String?
+
+  processedBy UUID     @map("processed_by")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  splitPayment SplitPayment @relation(fields: [splitPaymentId], references: [id], onDelete: Cascade)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([splitPaymentId])
+  @@index([tenantId])
+  @@map("payment_reversals")
+}
+
+model PaymentMethodLimit {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  paymentMethod String @map("payment_method")
+
+  // Limits
+  minAmount  Decimal? @map("min_amount") @db.Decimal(10, 2)
+  maxAmount  Decimal? @map("max_amount") @db.Decimal(10, 2)
+  dailyLimit Decimal? @map("daily_limit") @db.Decimal(10, 2)
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([paymentMethod])
+  @@map("payment_method_limits")
+}
+
+// ============================================
+// CUSTOM RECEIPTS (8 features)
+// ============================================
+
+model ReceiptTemplate {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String
+  description String?
+
+  // Template settings
+  templateType String @default("standard") @map("template_type") // standard, compact, detailed
+
+  // Branding
+  logoUrl    String? @map("logo_url")
+  headerText String? @map("header_text") @db.Text
+  footerText String? @map("footer_text") @db.Text
+
+  // Layout settings (JSON)
+  layoutConfig Json @default("{}") @map("layout_config")
+
+  // Variables to include (JSON array)
+  variables Json @default("[]")
+
+  // Conditional sections (JSON)
+  conditionalSections Json @default("[]") @map("conditional_sections")
+
+  // Multi-language support
+  language     String @default("en")
+  translations Json   @default("{}")
+
+  // QR Code settings
+  includeQrCode Boolean @default(false) @map("include_qr_code")
+  qrCodeType    String? @map("qr_code_type") // transaction, loyalty, website
+  qrCodeData    String? @map("qr_code_data")
+
+  // Promotional messages
+  promotionalMessage  String? @map("promotional_message") @db.Text
+  promotionalPosition String? @map("promotional_position") // top, middle, bottom
+
+  isDefault Boolean @default(false) @map("is_default")
+  isActive  Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([isDefault])
+  @@map("receipt_templates")
+}
+
+// ============================================
+// TILL MANAGEMENT (12 features)
+// ============================================
+
+model Till {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  locationId String? @map("location_id")
+
+  tillNumber  String @map("till_number")
+  name        String
+  description String?
+
+  status String @default("closed") // open, closed, suspended
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location     Location?      @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  sessions     TillSession[]
+  transfersFrom TillTransfer[] @relation("TillTransferFrom")
+  transfersTo   TillTransfer[] @relation("TillTransferTo")
+  reports      TillReport[]
+
+  @@unique([tenantId, tillNumber])
+  @@index([tenantId])
+  @@index([locationId])
+  @@index([status])
+  @@map("tills")
+}
+
+model TillSession {
+  id       String  @id @default(uuid())
+  tillId   String  @map("till_id")
+  tenantId String  @map("tenant_id")
+
+  openedBy String  @map("opened_by")
+  closedBy String? @map("closed_by")
+
+  // Opening float
+  openingFloat Decimal @default(0) @map("opening_float") @db.Decimal(10, 2)
+  openingNotes String? @map("opening_notes") @db.Text
+
+  // Expected closing
+  expectedCash  Decimal @default(0) @map("expected_cash") @db.Decimal(10, 2)
+  expectedCard  Decimal @default(0) @map("expected_card") @db.Decimal(10, 2)
+  expectedTotal Decimal @default(0) @map("expected_total") @db.Decimal(10, 2)
+
+  // Actual closing
+  actualCash  Decimal? @map("actual_cash") @db.Decimal(10, 2)
+  actualCard  Decimal? @map("actual_card") @db.Decimal(10, 2)
+  actualTotal Decimal? @map("actual_total") @db.Decimal(10, 2)
+
+  // Over/short
+  cashDifference  Decimal? @map("cash_difference") @db.Decimal(10, 2)
+  cardDifference  Decimal? @map("card_difference") @db.Decimal(10, 2)
+  totalDifference Decimal? @map("total_difference") @db.Decimal(10, 2)
+
+  // Denominations (JSON for detailed breakdown)
+  cashDenominations Json? @map("cash_denominations")
+
+  // Session data
+  transactionCount Int     @default(0) @map("transaction_count")
+  totalSales       Decimal @default(0) @map("total_sales") @db.Decimal(10, 2)
+
+  closingNotes String? @map("closing_notes") @db.Text
+
+  status String @default("open") // open, closed, reconciled
+
+  openedAt     DateTime  @default(now()) @map("opened_at")
+  closedAt     DateTime? @map("closed_at")
+  reconciledAt DateTime? @map("reconciled_at")
+
+  // Relations
+  till   Till   @relation(fields: [tillId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reports TillReport[]
+
+  @@index([tillId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([openedAt])
+  @@map("till_sessions")
+}
+
+model TillTransfer {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  fromTillId String @map("from_till_id")
+  toTillId   String @map("to_till_id")
+
+  amount Decimal @db.Decimal(10, 2)
+
+  initiatedBy String  @map("initiated_by")
+  approvedBy  String? @map("approved_by")
+
+  reason String?
+  notes  String? @db.Text
+
+  status String @default("pending") // pending, approved, completed, rejected
+
+  initiatedAt DateTime  @default(now()) @map("initiated_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Relations
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fromTill Till   @relation("TillTransferFrom", fields: [fromTillId], references: [id], onDelete: Cascade)
+  toTill   Till   @relation("TillTransferTo", fields: [toTillId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([fromTillId])
+  @@index([toTillId])
+  @@map("till_transfers")
+}
+
+model TillReport {
+  id            String  @id @default(uuid())
+  tenantId      String  @map("tenant_id")
+  tillId        String? @map("till_id")
+  tillSessionId String? @map("till_session_id")
+
+  reportType   String  @map("report_type") // z_report, x_report, eod_report
+  reportNumber String? @map("report_number")
+
+  // Financial summary
+  totalSales     Decimal? @map("total_sales") @db.Decimal(10, 2)
+  totalCash      Decimal? @map("total_cash") @db.Decimal(10, 2)
+  totalCard      Decimal? @map("total_card") @db.Decimal(10, 2)
+  totalRefunds   Decimal? @map("total_refunds") @db.Decimal(10, 2)
+  totalDiscounts Decimal? @map("total_discounts") @db.Decimal(10, 2)
+  totalTax       Decimal? @map("total_tax") @db.Decimal(10, 2)
+
+  transactionCount Int? @map("transaction_count")
+
+  // Detailed data (JSON)
+  reportData Json? @map("report_data")
+
+  generatedBy String?   @map("generated_by")
+  generatedAt DateTime  @default(now()) @map("generated_at")
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  till        Till?        @relation(fields: [tillId], references: [id], onDelete: SetNull)
+  tillSession TillSession? @relation(fields: [tillSessionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([reportType])
+  @@index([generatedAt])
+  @@map("till_reports")
+}
+
+// ============================================
+// GIFT CARDS & VOUCHERS (8 features)
+// ============================================
+
+model GiftCard {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  cardNumber String  @unique @map("card_number")
+  pinCode    String? @map("pin_code")
+
+  // Balance
+  initialBalance Decimal @map("initial_balance") @db.Decimal(10, 2)
+  currentBalance Decimal @map("current_balance") @db.Decimal(10, 2)
+
+  // Card details
+  cardType String @default("gift_card") @map("card_type") // gift_card, store_credit, promotional
+
+  // Validity
+  issuedDate DateTime @default(now()) @map("issued_date")
+  expiryDate DateTime? @map("expiry_date")
+
+  status String @default("active") // active, redeemed, expired, cancelled
+
+  // Recipient
+  recipientName  String? @map("recipient_name")
+  recipientEmail String? @map("recipient_email")
+  recipientPhone String? @map("recipient_phone")
+
+  // Purchaser
+  purchasedByCustomerId String?   @map("purchased_by_customer_id")
+  purchasedAt           DateTime? @map("purchased_at")
+
+  // Notes
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer     Customer?              @relation(fields: [purchasedByCustomerId], references: [id], onDelete: SetNull)
+  transactions GiftCardTransaction[]
+
+  @@index([tenantId])
+  @@index([cardNumber])
+  @@index([status])
+  @@index([expiryDate])
+  @@map("gift_cards")
+}
+
+model GiftCardTransaction {
+  id         String @id @default(uuid())
+  giftCardId String @map("gift_card_id")
+  tenantId   String @map("tenant_id")
+
+  transactionType String  @map("transaction_type") // redemption, reload, refund, adjustment
+  amount          Decimal @db.Decimal(10, 2)
+
+  balanceBefore Decimal @map("balance_before") @db.Decimal(10, 2)
+  balanceAfter  Decimal @map("balance_after") @db.Decimal(10, 2)
+
+  // Reference transaction if redemption
+  posTransactionId String? @map("pos_transaction_id")
+
+  processedBy String   @map("processed_by")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  notes String? @db.Text
+
+  // Relations
+  giftCard       GiftCard     @relation(fields: [giftCardId], references: [id], onDelete: Cascade)
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  posTransaction Transaction? @relation(fields: [posTransactionId], references: [id], onDelete: SetNull)
+
+  @@index([giftCardId])
+  @@index([tenantId])
+  @@index([transactionType])
+  @@map("gift_card_transactions")
+}
+
+model Voucher {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  code        String @unique
+  name        String
+  description String? @db.Text
+
+  // Discount details
+  discountType  String  @map("discount_type") // percentage, fixed_amount
+  discountValue Decimal @map("discount_value") @db.Decimal(10, 2)
+
+  // Conditions
+  minPurchaseAmount Decimal  @default(0) @map("min_purchase_amount") @db.Decimal(10, 2)
+  maxDiscountAmount Decimal? @map("max_discount_amount") @db.Decimal(10, 2)
+
+  applicableTo    String @default("all") @map("applicable_to") // all, products, categories
+  applicableItems Json?  @map("applicable_items")
+
+  // Usage limits
+  usageLimit        Int? @map("usage_limit") // NULL = unlimited
+  usagePerCustomer  Int  @default(1) @map("usage_per_customer")
+  timesUsed         Int  @default(0) @map("times_used")
+
+  // Validity
+  validFrom  DateTime? @map("valid_from")
+  validUntil DateTime? @map("valid_until")
+
+  status String @default("active") // active, inactive, expired
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  redemptions VoucherRedemption[]
+
+  @@index([tenantId])
+  @@index([code])
+  @@index([status])
+  @@map("vouchers")
+}
+
+model VoucherRedemption {
+  id         String  @id @default(uuid())
+  voucherId  String  @map("voucher_id")
+  tenantId   String  @map("tenant_id")
+  transactionId String @map("transaction_id")
+  customerId String? @map("customer_id")
+
+  discountApplied Decimal @map("discount_applied") @db.Decimal(10, 2)
+
+  redeemedAt DateTime @default(now()) @map("redeemed_at")
+
+  // Relations
+  voucher     Voucher     @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  customer    Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([voucherId])
+  @@index([tenantId])
+  @@index([customerId])
+  @@map("voucher_redemptions")
+}
+
+// ============================================
+// ADVANCED PRICING (7 features)
+// ============================================
+
+model PriceSchedule {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String
+  description String? @db.Text
+
+  // Schedule type
+  scheduleType String @map("schedule_type") // time_of_day, day_of_week, date_range
+
+  // Time rules (JSON)
+  timeRules Json @map("time_rules")
+
+  // Pricing adjustment
+  adjustmentType  String  @map("adjustment_type") // percentage, fixed_amount
+  adjustmentValue Decimal @map("adjustment_value") @db.Decimal(10, 2)
+
+  // Applicability
+  appliesTo       String @default("all") @map("applies_to") // all, products, categories
+  applicableItems Json?  @map("applicable_items")
+
+  priority Int     @default(0) // Higher priority wins if multiple schedules apply
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([isActive])
+  @@map("price_schedules")
+}
+
+model CustomerSpecificPrice {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  customerId String @map("customer_id")
+  productId  String @map("product_id")
+
+  specialPrice Decimal @map("special_price") @db.Decimal(10, 2)
+
+  // Validity
+  validFrom  DateTime? @map("valid_from")
+  validUntil DateTime? @map("valid_until")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([productId])
+  @@map("customer_specific_prices")
+}
+
+model VolumePricingRule {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  productId  String? @map("product_id")
+  categoryId String? @map("category_id")
+
+  name String
+
+  // Quantity tiers (JSON array)
+  quantityTiers Json @map("quantity_tiers")
+  // Example: [{"min": 10, "max": 50, "price": 9.50}, {"min": 51, "price": 8.00}]
+
+  // Applicability
+  appliesTo String @default("product") @map("applies_to") // product, category, all
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([categoryId])
+  @@map("volume_pricing_rules")
+}
+
+model PriceOverride {
+  id                String @id @default(uuid())
+  transactionItemId String @map("transaction_item_id")
+  tenantId          String @map("tenant_id")
+
+  originalPrice Decimal @map("original_price") @db.Decimal(10, 2)
+  overridePrice Decimal @map("override_price") @db.Decimal(10, 2)
+
+  reason String?
+
+  authorizedBy String   @map("authorized_by")
+  authorizedAt DateTime @default(now()) @map("authorized_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([authorizedBy])
+  @@map("price_overrides")
+}
+
+model PriceHistory {
+  id        String @id @default(uuid())
+  productId String @map("product_id")
+  tenantId  String @map("tenant_id")
+
+  oldPrice Decimal? @map("old_price") @db.Decimal(10, 2)
+  newPrice Decimal  @map("new_price") @db.Decimal(10, 2)
+
+  changeType String? @map("change_type") // manual, scheduled, bulk, cost_based
+
+  changedBy String?   @map("changed_by")
+  changedAt DateTime  @default(now()) @map("changed_at")
+
+  notes String? @db.Text
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([tenantId])
+  @@index([changedAt])
+  @@map("price_history")
+}
+
+// ============================================
+// QUICK KEYS (5 features)
+// ============================================
+
+model QuickKeyLayout {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  locationId String? @map("location_id")
+
+  name        String
+  description String? @db.Text
+
+  // Layout configuration (JSON)
+  layoutConfig Json @map("layout_config")
+
+  // Pages (multi-page support)
+  pageCount Int  @default(1) @map("page_count")
+  pages     Json?
+
+  isDefault Boolean @default(false) @map("is_default")
+  isActive  Boolean @default(true) @map("is_active")
+
+  createdBy String? @map("created_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location Location?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  buttons  QuickKeyButton[]
+
+  @@index([tenantId])
+  @@index([locationId])
+  @@map("quick_key_layouts")
+}
+
+model QuickKeyButton {
+  id       String @id @default(uuid())
+  layoutId String @map("layout_id")
+  tenantId String @map("tenant_id")
+
+  // Position
+  pageNumber Int @default(1) @map("page_number")
+  positionX  Int @map("position_x")
+  positionY  Int @map("position_y")
+  width      Int @default(1)
+  height     Int @default(1)
+
+  // Button content
+  label String
+  icon  String?
+
+  // Styling
+  backgroundColor String @default("#3B82F6") @map("background_color")
+  textColor       String @default("#FFFFFF") @map("text_color")
+
+  // Action
+  actionType String @map("action_type") // add_product, open_category, apply_discount, open_function
+  actionData Json?  @map("action_data")
+
+  // Product/Category reference
+  productId  String? @map("product_id")
+  categoryId String? @map("category_id")
+
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  layout   QuickKeyLayout @relation(fields: [layoutId], references: [id], onDelete: Cascade)
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  category Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([layoutId])
+  @@index([tenantId])
+  @@index([pageNumber, positionX, positionY])
+  @@map("quick_key_buttons")
+}
+
+// ============================================
+// EXTENSIONS TO EXISTING MODELS
+// ============================================
+
+// Add these relations to the Transaction model:
+// splitPayments       SplitPayment[]
+// giftCardTransactions GiftCardTransaction[]
+// voucherRedemptions  VoucherRedemption[]
+
+// Add these relations to the Tenant model:
+// splitPayments       SplitPayment[]
+// paymentReversals    PaymentReversal[]
+// paymentMethodLimits PaymentMethodLimit[]
+// receiptTemplates    ReceiptTemplate[]
+// tills               Till[]
+// tillSessions        TillSession[]
+// tillTransfers       TillTransfer[]
+// tillReports         TillReport[]
+// giftCards           GiftCard[]
+// giftCardTransactions GiftCardTransaction[]
+// vouchers            Voucher[]
+// voucherRedemptions  VoucherRedemption[]
+// priceSchedules      PriceSchedule[]
+// customerSpecificPrices CustomerSpecificPrice[]
+// volumePricingRules  VolumePricingRule[]
+// priceOverrides      PriceOverride[]
+// priceHistory        PriceHistory[]
+// quickKeyLayouts     QuickKeyLayout[]
+// quickKeyButtons     QuickKeyButton[]
+
+// Add these relations to the Customer model:
+// giftCardsPurchased  GiftCard[]
+// customerSpecificPrices CustomerSpecificPrice[]
+// voucherRedemptions  VoucherRedemption[]
+
+// Add these relations to the Product model:
+// customerSpecificPrices CustomerSpecificPrice[]
+// volumePricingRules  VolumePricingRule[]
+// priceHistory        PriceHistory[]
+// quickKeyButtons     QuickKeyButton[]
+
+// Add these relations to the Category model:
+// volumePricingRules  VolumePricingRule[]
+// quickKeyButtons     QuickKeyButton[]
+
+// Add these relations to the Location model:
+// tills              Till[]
+// quickKeyLayouts    QuickKeyLayout[]

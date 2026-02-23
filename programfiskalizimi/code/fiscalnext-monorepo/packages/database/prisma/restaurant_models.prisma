@@ -1,0 +1,369 @@
+
+// ============================================
+// RESTAURANT-SPECIFIC MODELS (Added 2026-02-23)
+// ============================================
+
+// Floor Plan Models
+model FloorPlan {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  
+  name        String
+  description String?
+  
+  // Layout configuration (JSON with floor dimensions, background, etc.)
+  layout Json @db.JsonB
+  
+  isActive  Boolean @default(true) @map("is_active")
+  isDefault Boolean @default(false) @map("is_default")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  tables RestaurantTable[]
+  
+  @@index([tenantId])
+  @@map("floor_plans")
+}
+
+// Table Models (renamed to avoid conflict)
+model RestaurantTable {
+  id          String  @id @default(uuid())
+  tenantId    String  @map("tenant_id")
+  locationId  String? @map("location_id")
+  floorPlanId String? @map("floor_plan_id")
+  
+  // Table details
+  tableNumber String  @map("table_number")
+  name        String? // Optional name
+  capacity    Int     @default(4)
+  
+  // Position on floor plan
+  positionX Int? @map("position_x")
+  positionY Int? @map("position_y")
+  width     Int? @default(100)
+  height    Int? @default(100)
+  rotation  Int? @default(0)
+  
+  // Table shape
+  shape String @default("rectangle")
+  
+  // Status
+  status String @default("available")
+  
+  // Current order
+  currentOrderId String? @map("current_order_id")
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  location  Location?  @relation(fields: [locationId], references: [id])
+  floorPlan FloorPlan? @relation(fields: [floorPlanId], references: [id])
+  orders    RestaurantOrder[]
+  
+  @@unique([tenantId, tableNumber])
+  @@index([tenantId])
+  @@index([locationId])
+  @@index([status])
+  @@map("restaurant_tables")
+}
+
+// Enhanced Order Model for Restaurant
+model RestaurantOrder {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  locationId String? @map("location_id")
+  tableId    String? @map("table_id")
+  userId     String  @map("user_id")
+  customerId String? @map("customer_id")
+  
+  orderNumber String @unique @map("order_number")
+  orderType String @default("dine_in") @map("order_type")
+  status String @default("open")
+  guestCount Int @default(1) @map("guest_count")
+  
+  // Amounts
+  subtotal       Decimal @default(0) @map("subtotal") @db.Decimal(10, 2)
+  taxAmount      Decimal @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  tipAmount      Decimal @default(0) @map("tip_amount") @db.Decimal(10, 2)
+  serviceCharge  Decimal @default(0) @map("service_charge") @db.Decimal(10, 2)
+  total          Decimal @default(0) @db.Decimal(10, 2)
+  
+  // Payment
+  isPaid          Boolean @default(false) @map("is_paid")
+  splitType       String? @map("split_type")
+  transactionId String? @map("transaction_id")
+  
+  // Metadata
+  notes         String?
+  specialRequests String? @map("special_requests")
+  
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  sentToKitchenAt DateTime? @map("sent_to_kitchen_at")
+  completedAt DateTime? @map("completed_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  
+  // Relations
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  location  Location?     @relation(fields: [locationId], references: [id])
+  table     RestaurantTable?        @relation(fields: [tableId], references: [id])
+  customer  Customer?     @relation(fields: [customerId], references: [id])
+  items     RestaurantOrderItem[]
+  kitchenOrders KitchenOrder[]
+  tips      RestaurantTip[]
+  
+  @@index([tenantId])
+  @@index([tableId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("restaurant_orders")
+}
+
+// Order Items
+model RestaurantOrderItem {
+  id       String  @id @default(uuid())
+  orderId  String  @map("order_id")
+  productId String @map("product_id")
+  
+  productName String @map("product_name")
+  sku         String?
+  
+  quantity       Decimal @db.Decimal(10, 2)
+  unitPrice      Decimal @map("unit_price") @db.Decimal(10, 2)
+  taxRate        Decimal @map("tax_rate") @db.Decimal(5, 2)
+  discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  
+  subtotal Decimal @db.Decimal(10, 2)
+  total    Decimal @db.Decimal(10, 2)
+  
+  // Restaurant-specific
+  seatNumber Int?    @map("seat_number")
+  course     String?
+  status String @default("pending")
+  notes String?
+  
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  sentToKitchenAt DateTime? @map("sent_to_kitchen_at")
+  readyAt   DateTime? @map("ready_at")
+  servedAt  DateTime? @map("served_at")
+  
+  // Relations
+  order     RestaurantOrder           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product         @relation(fields: [productId], references: [id])
+  modifiers OrderItemModifier[]
+  
+  @@index([orderId])
+  @@index([productId])
+  @@index([status])
+  @@map("restaurant_order_items")
+}
+
+// Order Modifiers
+model OrderItemModifier {
+  id          String @id @default(uuid())
+  orderItemId String @map("order_item_id")
+  modifierId  String @map("modifier_id")
+  
+  modifierName String  @map("modifier_name")
+  priceAdjustment Decimal @default(0) @map("price_adjustment") @db.Decimal(10, 2)
+  
+  // Relations
+  orderItem RestaurantOrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifier  MenuModifier  @relation(fields: [modifierId], references: [id])
+  
+  @@index([orderItemId])
+  @@map("order_item_modifiers")
+}
+
+// Modifier Options
+model MenuModifier {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  categoryId String? @map("category_id")
+  
+  name           String
+  modifierType   String  @map("modifier_type")
+  priceAdjustment Decimal @default(0) @map("price_adjustment") @db.Decimal(10, 2)
+  applicableToAll Boolean @default(true) @map("applicable_to_all")
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  orderModifiers OrderItemModifier[]
+  productModifiers ProductMenuModifier[]
+  
+  @@index([tenantId])
+  @@map("menu_modifiers")
+}
+
+// Product-Modifier mapping
+model ProductMenuModifier {
+  productId  String @map("product_id")
+  modifierId String @map("modifier_id")
+  
+  // Relations
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modifier MenuModifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+  
+  @@id([productId, modifierId])
+  @@map("product_menu_modifiers")
+}
+
+// Kitchen Display System Models
+model KitchenStation {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  locationId String? @map("location_id")
+  
+  name        String
+  description String?
+  stationType String @map("station_type")
+  displayOrder Int @default(0) @map("display_order")
+  color        String? @default("#3b82f6")
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  location      Location?      @relation(fields: [locationId], references: [id])
+  kitchenOrders KitchenOrder[]
+  categoryStations CategoryKitchenStation[]
+  
+  @@index([tenantId])
+  @@index([locationId])
+  @@map("kitchen_stations")
+}
+
+// Map categories to kitchen stations
+model CategoryKitchenStation {
+  categoryId String @map("category_id")
+  stationId  String @map("station_id")
+  
+  // Relations
+  category Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  station  KitchenStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  
+  @@id([categoryId, stationId])
+  @@map("category_kitchen_stations")
+}
+
+// Kitchen Orders
+model KitchenOrder {
+  id        String  @id @default(uuid())
+  tenantId  String  @map("tenant_id")
+  orderId   String  @map("order_id")
+  stationId String  @map("station_id")
+  
+  orderNumber String @map("order_number")
+  tableNumber String? @map("table_number")
+  items Json @db.JsonB
+  status String @default("pending")
+  priority Int @default(0)
+  estimatedPrepTime Int? @map("estimated_prep_time")
+  notes String?
+  
+  // Timestamps
+  createdAt  DateTime  @default(now()) @map("created_at")
+  startedAt  DateTime? @map("started_at")
+  readyAt    DateTime? @map("ready_at")
+  servedAt   DateTime? @map("served_at")
+  completedAt DateTime? @map("completed_at")
+  
+  // Relations
+  tenant  Tenant         @relation(fields: [tenantId], references: [id])
+  order   RestaurantOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  station KitchenStation @relation(fields: [stationId], references: [id])
+  
+  @@index([tenantId])
+  @@index([orderId])
+  @@index([stationId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("kitchen_orders")
+}
+
+// Tips & Service Charge Models
+model RestaurantTip {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  orderId     String @map("order_id")
+  userId      String @map("user_id")
+  
+  amount        Decimal @db.Decimal(10, 2)
+  tipType       String  @map("tip_type")
+  isPooled      Boolean @default(false) @map("is_pooled")
+  pooledAmount  Decimal @default(0) @map("pooled_amount") @db.Decimal(10, 2)
+  paymentMethod String? @map("payment_method")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  order   RestaurantOrder   @relation(fields: [orderId], references: [id])
+  distributions TipDistribution[]
+  
+  @@index([tenantId])
+  @@index([orderId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("restaurant_tips")
+}
+
+// Tip Distribution
+model TipDistribution {
+  id       String @id @default(uuid())
+  tipId    String @map("tip_id")
+  userId   String @map("user_id")
+  
+  amount      Decimal @db.Decimal(10, 2)
+  percentage  Decimal @db.Decimal(5, 2)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  tip RestaurantTip @relation(fields: [tipId], references: [id], onDelete: Cascade)
+  
+  @@index([tipId])
+  @@index([userId])
+  @@map("tip_distributions")
+}
+
+// Service Charge Rules
+model ServiceChargeRule {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  locationId String? @map("location_id")
+  
+  name        String
+  description String?
+  chargeType String @map("charge_type")
+  percentage Decimal? @db.Decimal(5, 2)
+  fixedAmount Decimal? @map("fixed_amount") @db.Decimal(10, 2)
+  minGuestCount Int? @map("min_guest_count")
+  minOrderAmount Decimal? @map("min_order_amount") @db.Decimal(10, 2)
+  timeRules Json? @map("time_rules") @db.JsonB
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  
+  @@index([tenantId])
+  @@index([locationId])
+  @@map("service_charge_rules")
+}

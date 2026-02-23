@@ -13,7 +13,11 @@ import {
   FiFileText,
   FiTrendingUp,
   FiLayers,
-  FiUserPlus
+  FiUserPlus,
+  FiAward,
+  FiTag,
+  FiBell,
+  FiActivity
 } from 'react-icons/fi';
 
 const navigation = [
@@ -23,7 +27,12 @@ const navigation = [
   { name: 'Categories', href: '/categories', icon: FiPackage },
   { name: 'Inventory', href: '/inventory', icon: FiLayers },
   { name: 'Customers', href: '/customers', icon: FiUsers },
+  { name: 'Employees', href: '/employees', icon: FiUserPlus },
+  { name: 'Loyalty Program', href: '/loyalty', icon: FiAward },
+  { name: 'Promotions', href: '/promotions', icon: FiTag },
+  { name: 'Notifications', href: '/notifications', icon: FiBell },
   { name: 'Fiscal Receipts', href: '/fiscal-receipts', icon: FiFileText },
+  { name: 'Audit Logs', href: '/audit-logs', icon: FiActivity },
   { name: 'Reports', href: '/reports', icon: FiBarChart2 },
   { name: 'Users', href: '/users', icon: FiUserPlus },
   { name: 'Settings', href: '/settings', icon: FiSettings },

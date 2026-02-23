@@ -1,0 +1,1136 @@
+// ============================================
+// ADVANCED INVENTORY FEATURES - SCHEMA EXTENSION
+// Team 3: Klea (PM), Tafa (Backend), Mela (Frontend)
+// Created: 2026-02-23
+// All 50 Features - Database Models
+// ============================================
+
+// ============================================
+// 1. WAREHOUSE MANAGEMENT (12 features)
+// ============================================
+
+model Warehouse {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  
+  name    String
+  code    String @unique
+  address String?
+  city    String?
+  country String @default("AL")
+  
+  // Configuration
+  type     String @default("warehouse") // warehouse, distribution_center, retail
+  isActive Boolean @default(true) @map("is_active")
+  
+  // Capacity
+  totalArea     Decimal? @map("total_area") @db.Decimal(10, 2) // in square meters
+  usedArea      Decimal? @default(0) @map("used_area") @db.Decimal(10, 2)
+  capacityUnits Int?     @default(0) @map("capacity_units")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  zones           WarehouseZone[]
+  bins            WarehouseBin[]
+  pickingLists    PickingList[]
+  packingStations PackingStation[]
+  putAwayRules    PutAwayRule[]
+  cycleCounts     CycleCount[]
+  
+  @@index([tenantId])
+  @@map("warehouses")
+}
+
+model WarehouseZone {
+  id          String @id @default(uuid())
+  warehouseId String @map("warehouse_id")
+  
+  name        String
+  code        String
+  description String?
+  
+  // Zone Type
+  zoneType String @map("zone_type") // receiving, storage, picking, packing, shipping, bulk, refrigerated
+  
+  // Temperature control
+  temperature     String? // ambient, refrigerated, frozen
+  minTemperature  Decimal? @map("min_temperature") @db.Decimal(5, 2)
+  maxTemperature  Decimal? @map("max_temperature") @db.Decimal(5, 2)
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  bins      WarehouseBin[]
+  
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+  @@map("warehouse_zones")
+}
+
+model WarehouseBin {
+  id          String  @id @default(uuid())
+  warehouseId String  @map("warehouse_id")
+  zoneId      String? @map("zone_id")
+  
+  // Location
+  aisle      String?
+  rack       String?
+  shelf      String?
+  position   String?
+  binCode    String  @map("bin_code")
+  barcode    String? @unique
+  
+  // Properties
+  binType    String  @default("standard") @map("bin_type") // standard, bulk, pallet
+  maxWeight  Decimal? @map("max_weight") @db.Decimal(10, 2)
+  maxVolume  Decimal? @map("max_volume") @db.Decimal(10, 2)
+  
+  // Status
+  status     String  @default("available") // available, occupied, full, reserved, maintenance
+  isActive   Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  warehouse     Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  zone          WarehouseZone?  @relation(fields: [zoneId], references: [id])
+  stockBins     StockBin[]
+  pickingItems  PickingListItem[]
+  
+  @@unique([warehouseId, binCode])
+  @@index([warehouseId])
+  @@index([zoneId])
+  @@index([barcode])
+  @@map("warehouse_bins")
+}
+
+model StockBin {
+  id        String @id @default(uuid())
+  binId     String @map("bin_id")
+  productId String @map("product_id")
+  lotId     String? @map("lot_id")
+  
+  quantity Decimal @db.Decimal(10, 2)
+  
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  bin     WarehouseBin @relation(fields: [binId], references: [id], onDelete: Cascade)
+  lot     LotNumber?   @relation(fields: [lotId], references: [id])
+  
+  @@unique([binId, productId, lotId])
+  @@index([binId])
+  @@index([productId])
+  @@map("stock_bins")
+}
+
+model PickingList {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  warehouseId String @map("warehouse_id")
+  
+  pickingNumber String   @unique @map("picking_number")
+  orderNumber   String?  @map("order_number")
+  
+  // Assignment
+  assignedTo String? @map("assigned_to")
+  
+  // Status
+  status     String   @default("pending") // pending, assigned, picking, completed, cancelled
+  priority   String   @default("normal") // low, normal, high, urgent
+  
+  // Timing
+  dueDate    DateTime? @map("due_date")
+  startedAt  DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  
+  // Notes
+  notes String?
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
+  items     PickingListItem[]
+  
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("picking_lists")
+}
+
+model PickingListItem {
+  id            String  @id @default(uuid())
+  pickingListId String  @map("picking_list_id")
+  productId     String  @map("product_id")
+  binId         String? @map("bin_id")
+  lotId         String? @map("lot_id")
+  
+  quantityOrdered Decimal @map("quantity_ordered") @db.Decimal(10, 2)
+  quantityPicked  Decimal @default(0) @map("quantity_picked") @db.Decimal(10, 2)
+  
+  // Sequence for optimal picking route
+  sequence Int @default(0)
+  
+  status String @default("pending") // pending, picked, short_picked
+  
+  notes String?
+  
+  // Relations
+  pickingList PickingList  @relation(fields: [pickingListId], references: [id], onDelete: Cascade)
+  bin         WarehouseBin? @relation(fields: [binId], references: [id])
+  lot         LotNumber?    @relation(fields: [lotId], references: [id])
+  
+  @@index([pickingListId])
+  @@index([productId])
+  @@map("picking_list_items")
+}
+
+model PackingStation {
+  id          String @id @default(uuid())
+  warehouseId String @map("warehouse_id")
+  
+  stationNumber String  @map("station_number")
+  name          String
+  isActive      Boolean @default(true) @map("is_active")
+  
+  // Current assignment
+  currentOrderNumber String? @map("current_order_number")
+  operatorId         String? @map("operator_id")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  
+  @@unique([warehouseId, stationNumber])
+  @@index([warehouseId])
+  @@map("packing_stations")
+}
+
+model PutAwayRule {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  warehouseId String @map("warehouse_id")
+  
+  name        String
+  description String?
+  priority    Int    @default(0) // Higher = more priority
+  
+  // Conditions
+  productCategoryId String? @map("product_category_id")
+  productId         String? @map("product_id")
+  minQuantity       Decimal? @map("min_quantity") @db.Decimal(10, 2)
+  maxQuantity       Decimal? @map("max_quantity") @db.Decimal(10, 2)
+  
+  // Target
+  targetZoneType String? @map("target_zone_type")
+  targetZoneId   String? @map("target_zone_id")
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@map("put_away_rules")
+}
+
+model ShipmentOrder {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  warehouseId String? @map("warehouse_id")
+  
+  orderNumber  String   @unique @map("order_number")
+  customerName String?  @map("customer_name")
+  
+  // Addresses
+  shippingAddress Json?  @map("shipping_address")
+  
+  // Status
+  status String @default("pending") // pending, picking, packing, ready_to_ship, shipped, delivered
+  
+  // Tracking
+  trackingNumber String? @map("tracking_number")
+  carrier        String?
+  
+  // Timing
+  orderedAt    DateTime  @default(now()) @map("ordered_at")
+  pickedAt     DateTime? @map("picked_at")
+  packedAt     DateTime? @map("packed_at")
+  shippedAt    DateTime? @map("shipped_at")
+  deliveredAt  DateTime? @map("delivered_at")
+  
+  notes String?
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([tenantId])
+  @@index([status])
+  @@map("shipment_orders")
+}
+
+model CycleCount {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  warehouseId String @map("warehouse_id")
+  
+  countNumber String   @unique @map("count_number")
+  countType   String   @default("full") @map("count_type") // full, partial, spot
+  
+  // Schedule
+  scheduledDate DateTime @map("scheduled_date")
+  
+  // Assignment
+  assignedTo String? @map("assigned_to")
+  
+  // Status
+  status String @default("scheduled") // scheduled, in_progress, completed, cancelled
+  
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  
+  // Stats
+  totalItems     Int @default(0) @map("total_items")
+  countedItems   Int @default(0) @map("counted_items")
+  discrepancies  Int @default(0)
+  
+  notes String?
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  warehouse Warehouse        @relation(fields: [warehouseId], references: [id])
+  items     CycleCountItem[]
+  
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("cycle_counts")
+}
+
+model CycleCountItem {
+  id           String  @id @default(uuid())
+  cycleCountId String  @map("cycle_count_id")
+  productId    String  @map("product_id")
+  binId        String? @map("bin_id")
+  
+  expectedQuantity Decimal @map("expected_quantity") @db.Decimal(10, 2)
+  countedQuantity  Decimal? @map("counted_quantity") @db.Decimal(10, 2)
+  variance         Decimal? @db.Decimal(10, 2)
+  
+  status String @default("pending") // pending, counted, adjusted
+  
+  countedAt DateTime? @map("counted_at")
+  notes     String?
+  
+  // Relations
+  cycleCount CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+  
+  @@index([cycleCountId])
+  @@index([productId])
+  @@map("cycle_count_items")
+}
+
+// ============================================
+// 2. BARCODE SYSTEM (8 features)
+// ============================================
+
+model ProductBarcode {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  
+  barcode     String  @unique
+  barcodeType String  @default("EAN13") @map("barcode_type") // EAN13, UPC, CODE128, QR, etc.
+  isPrimary   Boolean @default(false) @map("is_primary")
+  
+  // Generation tracking
+  generatedBy String?   @map("generated_by")
+  generatedAt DateTime? @map("generated_at")
+  
+  // Print tracking
+  printCount     Int       @default(0) @map("print_count")
+  lastPrintedAt  DateTime? @map("last_printed_at")
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@index([barcode])
+  @@map("product_barcodes")
+}
+
+model BarcodeTemplate {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  
+  name        String
+  description String?
+  
+  // Template settings
+  templateType String @default("label") @map("template_type") // label, tag, shelf_label
+  
+  // Dimensions (in mm)
+  width  Decimal @db.Decimal(5, 2)
+  height Decimal @db.Decimal(5, 2)
+  
+  // Layout (JSON)
+  layout Json @default("{}") // fields, positions, fonts, sizes
+  
+  // Barcode settings
+  barcodeFormat   String  @default("EAN13") @map("barcode_format")
+  showBarcodeText Boolean @default(true) @map("show_barcode_text")
+  
+  // Fields to include
+  includeProductName  Boolean @default(true) @map("include_product_name")
+  includePrice        Boolean @default(true) @map("include_price")
+  includeSku          Boolean @default(true) @map("include_sku")
+  includeDescription  Boolean @default(false) @map("include_description")
+  
+  isDefault Boolean @default(false) @map("is_default")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([tenantId])
+  @@map("barcode_templates")
+}
+
+model BarcodePrintJob {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  
+  jobNumber  String @unique @map("job_number")
+  templateId String? @map("template_id")
+  
+  // Print details
+  productIds Json   @default("[]") @map("product_ids") // Array of product IDs
+  quantity   Int    @default(1)
+  copies     Int    @default(1)
+  
+  // Status
+  status String @default("pending") // pending, printing, completed, failed
+  
+  // Output
+  outputFormat String  @default("PDF") @map("output_format") // PDF, ZPL, PNG
+  outputUrl    String? @map("output_url")
+  
+  // Printer
+  printerName String? @map("printer_name")
+  
+  errorMessage String? @map("error_message")
+  
+  createdBy String  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  printedAt DateTime? @map("printed_at")
+  
+  @@index([tenantId])
+  @@index([status])
+  @@map("barcode_print_jobs")
+}
+
+model BarcodeScan {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String? @map("product_id")
+  
+  barcode   String
+  scanType  String @map("scan_type") // receiving, picking, sale, audit, verification
+  
+  // Location
+  warehouseId String? @map("warehouse_id")
+  binId       String? @map("bin_id")
+  
+  // Scan details
+  scannedBy   String   @map("scanned_by")
+  scannedAt   DateTime @default(now()) @map("scanned_at")
+  
+  // Verification
+  isValid     Boolean @default(true) @map("is_valid")
+  errorMessage String? @map("error_message")
+  
+  // Metadata
+  deviceInfo Json? @map("device_info")
+  
+  @@index([tenantId])
+  @@index([barcode])
+  @@index([scannedAt])
+  @@map("barcode_scans")
+}
+
+// ============================================
+// 3. STOCK FORECASTING (10 features)
+// ============================================
+
+model DemandForecast {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  
+  // Forecast period
+  forecastDate DateTime @map("forecast_date")
+  periodType   String   @default("daily") @map("period_type") // daily, weekly, monthly
+  
+  // Forecast values
+  predictedDemand    Decimal @map("predicted_demand") @db.Decimal(10, 2)
+  confidenceLevel    Decimal @map("confidence_level") @db.Decimal(5, 2) // 0-100
+  lowerBound         Decimal @map("lower_bound") @db.Decimal(10, 2)
+  upperBound         Decimal @map("upper_bound") @db.Decimal(10, 2)
+  
+  // Actuals (for accuracy tracking)
+  actualDemand Decimal? @map("actual_demand") @db.Decimal(10, 2)
+  accuracy     Decimal? @db.Decimal(5, 2)
+  
+  // Factors
+  seasonalityFactor Decimal? @map("seasonality_factor") @db.Decimal(10, 4)
+  trendFactor       Decimal? @map("trend_factor") @db.Decimal(10, 4)
+  
+  // Model info
+  modelVersion String?  @map("model_version")
+  algorithmUsed String? @map("algorithm_used") // moving_average, exponential_smoothing, arima, ml
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@unique([tenantId, productId, forecastDate])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([forecastDate])
+  @@map("demand_forecasts")
+}
+
+model SeasonalPattern {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String? @map("product_id")
+  categoryId String? @map("category_id")
+  
+  patternName String @map("pattern_name")
+  patternType String @map("pattern_type") // daily, weekly, monthly, yearly, holiday
+  
+  // Pattern data (JSON array of multipliers)
+  multipliers Json @default("[]") // e.g., [1.2, 1.5, 0.8, ...] for each period
+  
+  // Date ranges
+  startDate DateTime? @map("start_date")
+  endDate   DateTime? @map("end_date")
+  
+  // Statistics
+  averageMultiplier Decimal @default(1.0) @map("average_multiplier") @db.Decimal(10, 4)
+  peakMultiplier    Decimal @default(1.0) @map("peak_multiplier") @db.Decimal(10, 4)
+  lowMultiplier     Decimal @default(1.0) @map("low_multiplier") @db.Decimal(10, 4)
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@map("seasonal_patterns")
+}
+
+model StockForecastSettings {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String? @map("product_id") // null = global settings
+  
+  // Lead time
+  leadTimeDays        Int     @default(7) @map("lead_time_days")
+  leadTimeVariability Decimal @default(0) @map("lead_time_variability") @db.Decimal(5, 2)
+  
+  // Safety stock
+  safetyStockDays   Int     @default(7) @map("safety_stock_days")
+  safetyStockMethod String  @default("fixed") @map("safety_stock_method") // fixed, dynamic, ml
+  minSafetyStock    Decimal @map("min_safety_stock") @db.Decimal(10, 2)
+  
+  // Reorder point
+  reorderPoint       Decimal @map("reorder_point") @db.Decimal(10, 2)
+  reorderQuantity    Decimal @map("reorder_quantity") @db.Decimal(10, 2)
+  
+  // Economic Order Quantity
+  economicOrderQty   Decimal? @map("economic_order_qty") @db.Decimal(10, 2)
+  orderingCost       Decimal? @default(0) @map("ordering_cost") @db.Decimal(10, 2)
+  holdingCostPercent Decimal? @default(20) @map("holding_cost_percent") @db.Decimal(5, 2)
+  
+  // Service level target
+  serviceLevel Decimal @default(95) @map("service_level") @db.Decimal(5, 2) // 0-100
+  
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([tenantId, productId])
+  @@index([tenantId])
+  @@map("stock_forecast_settings")
+}
+
+model StockTurnover {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  
+  // Period
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  periodType  String   @default("monthly") @map("period_type")
+  
+  // Metrics
+  openingStock   Decimal @map("opening_stock") @db.Decimal(10, 2)
+  closingStock   Decimal @map("closing_stock") @db.Decimal(10, 2)
+  averageStock   Decimal @map("average_stock") @db.Decimal(10, 2)
+  
+  totalSold      Decimal @map("total_sold") @db.Decimal(10, 2)
+  costOfGoodsSold Decimal @map("cost_of_goods_sold") @db.Decimal(10, 2)
+  
+  // Ratios
+  turnoverRate   Decimal @map("turnover_rate") @db.Decimal(10, 4)
+  daysToSell     Decimal @map("days_to_sell") @db.Decimal(10, 2)
+  
+  // Status
+  status String @default("normal") // fast_moving, normal, slow_moving, dead_stock
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@unique([tenantId, productId, periodStart])
+  @@index([tenantId])
+  @@index([productId])
+  @@map("stock_turnover")
+}
+
+// ============================================
+// 4. AUTOMATED REORDERING (8 features)
+// ============================================
+
+model PurchaseOrder {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  supplierId String @map("supplier_id")
+  
+  poNumber   String   @unique @map("po_number")
+  orderDate  DateTime @default(now()) @map("order_date")
+  
+  // Status
+  status String @default("draft") // draft, pending_approval, approved, sent, receiving, completed, cancelled
+  
+  // Approval
+  requiresApproval Boolean   @default(false) @map("requires_approval")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  
+  // Expected delivery
+  expectedDelivery DateTime? @map("expected_delivery")
+  actualDelivery   DateTime? @map("actual_delivery")
+  
+  // Amounts
+  subtotal      Decimal @default(0) @db.Decimal(10, 2)
+  taxAmount     Decimal @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  shippingCost  Decimal @default(0) @map("shipping_cost") @db.Decimal(10, 2)
+  totalAmount   Decimal @map("total_amount") @db.Decimal(10, 2)
+  
+  // Automation
+  isAutoGenerated Boolean @default(false) @map("is_auto_generated")
+  triggeredBy     String? @map("triggered_by") // reorder_point, forecast, manual
+  
+  notes String?
+  
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  items PurchaseOrderItem[]
+  
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String @id @default(uuid())
+  purchaseOrderId String @map("purchase_order_id")
+  productId       String @map("product_id")
+  
+  productName     String  @map("product_name")
+  sku             String?
+  
+  quantityOrdered  Decimal @map("quantity_ordered") @db.Decimal(10, 2)
+  quantityReceived Decimal @default(0) @map("quantity_received") @db.Decimal(10, 2)
+  
+  unitCost  Decimal @map("unit_cost") @db.Decimal(10, 2)
+  taxRate   Decimal @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  lineTotal Decimal @map("line_total") @db.Decimal(10, 2)
+  
+  notes String?
+  
+  // Relations
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  
+  @@index([purchaseOrderId])
+  @@index([productId])
+  @@map("purchase_order_items")
+}
+
+model ReorderRule {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  
+  ruleName String @map("rule_name")
+  
+  // Trigger conditions
+  triggerType   String  @default("min_max") @map("trigger_type") // min_max, forecast_based, time_based
+  minLevel      Decimal @map("min_level") @db.Decimal(10, 2)
+  maxLevel      Decimal @map("max_level") @db.Decimal(10, 2)
+  reorderPoint  Decimal @map("reorder_point") @db.Decimal(10, 2)
+  reorderQty    Decimal @map("reorder_qty") @db.Decimal(10, 2)
+  
+  // Supplier selection
+  preferredSupplierId String? @map("preferred_supplier_id")
+  supplierSelectionMethod String @default("preferred") @map("supplier_selection_method") // preferred, lowest_price, fastest_delivery, best_performance
+  
+  // Automation
+  autoApprove Boolean @default(false) @map("auto_approve")
+  autoSend    Boolean @default(false) @map("auto_send")
+  
+  // Schedule
+  checkFrequency String? @default("daily") @map("check_frequency") // hourly, daily, weekly
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  // Stats
+  timesTriggered  Int       @default(0) @map("times_triggered")
+  lastTriggeredAt DateTime? @map("last_triggered_at")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([tenantId, productId])
+  @@index([tenantId])
+  @@index([isActive])
+  @@map("reorder_rules")
+}
+
+model SupplierPerformance {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  supplierId String @map("supplier_id")
+  
+  // Period
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  
+  // Metrics
+  totalOrders       Int @default(0) @map("total_orders")
+  onTimeDeliveries  Int @default(0) @map("on_time_deliveries")
+  lateDeliveries    Int @default(0) @map("late_deliveries")
+  
+  averageLeadTime   Decimal @default(0) @map("average_lead_time") @db.Decimal(5, 2)
+  onTimePercent     Decimal @default(0) @map("on_time_percent") @db.Decimal(5, 2)
+  
+  totalPurchaseValue Decimal @default(0) @map("total_purchase_value") @db.Decimal(12, 2)
+  
+  qualityScore      Decimal @default(0) @map("quality_score") @db.Decimal(5, 2) // 0-100
+  performanceScore  Decimal @default(0) @map("performance_score") @db.Decimal(5, 2) // 0-100
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@unique([tenantId, supplierId, periodStart])
+  @@index([tenantId])
+  @@index([supplierId])
+  @@map("supplier_performance")
+}
+
+// ============================================
+// 5. LOT TRACKING & RECALLS (7 features)
+// ============================================
+
+model LotNumber {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  
+  lotNumber  String  @map("lot_number")
+  batchNumber String? @map("batch_number")
+  serialNumber String? @map("serial_number")
+  
+  // Dates
+  manufacturingDate DateTime? @map("manufacturing_date")
+  expiryDate        DateTime? @map("expiry_date")
+  receivedDate      DateTime  @default(now()) @map("received_date")
+  
+  // Quantity tracking
+  initialQuantity  Decimal @map("initial_quantity") @db.Decimal(10, 2)
+  currentQuantity  Decimal @map("current_quantity") @db.Decimal(10, 2)
+  reservedQuantity Decimal @default(0) @map("reserved_quantity") @db.Decimal(10, 2)
+  
+  // Status
+  status String @default("active") // active, expired, recalled, depleted
+  
+  // Supplier/Vendor
+  supplierId String? @map("supplier_id")
+  supplierLotNumber String? @map("supplier_lot_number")
+  
+  // Cost tracking (for FIFO/LIFO)
+  unitCost Decimal? @map("unit_cost") @db.Decimal(10, 2)
+  
+  // Recall status
+  isRecalled     Boolean   @default(false) @map("is_recalled")
+  recallDate     DateTime? @map("recall_date")
+  recallReason   String?   @map("recall_reason")
+  
+  notes String?
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  stockBins           StockBin[]
+  pickingListItems    PickingListItem[]
+  lotMovements        LotMovement[]
+  
+  @@unique([tenantId, lotNumber])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([expiryDate])
+  @@index([status])
+  @@map("lot_numbers")
+}
+
+model LotMovement {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  lotId    String @map("lot_id")
+  
+  movementType String  @map("movement_type") // in, out, transfer, adjustment
+  quantity     Decimal @db.Decimal(10, 2)
+  
+  // Before/After
+  quantityBefore Decimal @map("quantity_before") @db.Decimal(10, 2)
+  quantityAfter  Decimal @map("quantity_after") @db.Decimal(10, 2)
+  
+  // Reference
+  referenceType String? @map("reference_type") // purchase_order, sale, transfer, adjustment
+  referenceId   String? @map("reference_id")
+  
+  // Location
+  fromBinId String? @map("from_bin_id")
+  toBinId   String? @map("to_bin_id")
+  
+  // Tracking
+  performedBy String   @map("performed_by")
+  performedAt DateTime @default(now()) @map("performed_at")
+  
+  notes String?
+  
+  // Relations
+  lot LotNumber @relation(fields: [lotId], references: [id])
+  
+  @@index([tenantId])
+  @@index([lotId])
+  @@index([performedAt])
+  @@map("lot_movements")
+}
+
+model LotInventoryPolicy {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String? @map("product_id") // null = global policy
+  categoryId String? @map("category_id")
+  
+  policyName String @map("policy_name")
+  
+  // FIFO/LIFO/FEFO
+  pickingMethod String @default("FIFO") @map("picking_method") // FIFO, LIFO, FEFO, Manual
+  
+  // Expiry enforcement
+  enforceExpiry         Boolean @default(false) @map("enforce_expiry")
+  expiryWarningDays     Int     @default(30) @map("expiry_warning_days")
+  blockExpiredSales     Boolean @default(true) @map("block_expired_sales")
+  
+  // Lot tracking requirements
+  requireLotOnReceiving Boolean @default(false) @map("require_lot_on_receiving")
+  requireLotOnSale      Boolean @default(false) @map("require_lot_on_sale")
+  requireSerialNumbers  Boolean @default(false) @map("require_serial_numbers")
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@map("lot_inventory_policies")
+}
+
+model ProductRecall {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  
+  recallNumber String @unique @map("recall_number")
+  recallType   String @map("recall_type") // voluntary, mandatory, precautionary
+  
+  // Scope
+  affectedLotNumbers Json @default("[]") @map("affected_lot_numbers") // Array of lot numbers
+  
+  // Details
+  recallReason  String @map("recall_reason") @db.Text
+  healthRisk    String @default("low") @map("health_risk") // low, medium, high, critical
+  
+  // Dates
+  recallDate       DateTime @map("recall_date")
+  effectiveDate    DateTime @map("effective_date")
+  completionDate   DateTime? @map("completion_date")
+  
+  // Actions
+  actionRequired   String @map("action_required") @db.Text
+  returnInstructions String? @map("return_instructions") @db.Text
+  
+  // Status
+  status String @default("active") // active, in_progress, completed, cancelled
+  
+  // Tracking
+  unitsAffected      Int @default(0) @map("units_affected")
+  unitsRecovered     Int @default(0) @map("units_recovered")
+  unitsDestroyed     Int @default(0) @map("units_destroyed")
+  customersNotified  Int @default(0) @map("customers_notified")
+  
+  // Notifications
+  notificationSent  Boolean   @default(false) @map("notification_sent")
+  notificationDate  DateTime? @map("notification_date")
+  
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@index([status])
+  @@map("product_recalls")
+}
+
+model TraceabilityLog {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  
+  entityType String @map("entity_type") // product, lot, shipment, transaction
+  entityId   String @map("entity_id")
+  
+  eventType   String @map("event_type") // received, stored, picked, sold, transferred, returned
+  eventData   Json   @map("event_data")
+  
+  // Location tracking
+  fromLocation String? @map("from_location")
+  toLocation   String? @map("to_location")
+  
+  // Timestamps
+  eventTime DateTime @default(now()) @map("event_time")
+  recordedBy String  @map("recorded_by")
+  
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([eventTime])
+  @@map("traceability_logs")
+}
+
+// ============================================
+// 6. INVENTORY AUDITS (5 features)
+// ============================================
+
+model InventoryAudit {
+  id          String  @id @default(uuid())
+  tenantId    String  @map("tenant_id")
+  warehouseId String? @map("warehouse_id")
+  
+  auditNumber String   @unique @map("audit_number")
+  auditType   String   @map("audit_type") // full, partial, cycle, spot, surprise
+  
+  // Schedule
+  scheduledDate DateTime  @map("scheduled_date")
+  startDate     DateTime? @map("start_date")
+  endDate       DateTime? @map("end_date")
+  
+  // Assignment
+  auditorId   String? @map("auditor_id")
+  auditorName String? @map("auditor_name")
+  
+  // Scope
+  scope Json @default("{}") // categories, locations, products to audit
+  
+  // Status
+  status String @default("scheduled") // scheduled, in_progress, review, completed, cancelled
+  
+  // Results
+  totalItemsToAudit  Int     @default(0) @map("total_items_to_audit")
+  itemsAudited       Int     @default(0) @map("items_audited")
+  itemsWithVariance  Int     @default(0) @map("items_with_variance")
+  totalVarianceValue Decimal @default(0) @map("total_variance_value") @db.Decimal(12, 2)
+  
+  // Approval
+  requiresApproval Boolean   @default(false) @map("requires_approval")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  
+  notes String?
+  
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  items       InventoryAuditItem[]
+  adjustments InventoryAdjustment[]
+  
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@map("inventory_audits")
+}
+
+model InventoryAuditItem {
+  id              String  @id @default(uuid())
+  inventoryAuditId String  @map("inventory_audit_id")
+  productId       String  @map("product_id")
+  lotId           String? @map("lot_id")
+  binId           String? @map("bin_id")
+  
+  // Expected vs Actual
+  expectedQuantity Decimal @map("expected_quantity") @db.Decimal(10, 2)
+  auditedQuantity  Decimal? @map("audited_quantity") @db.Decimal(10, 2)
+  variance         Decimal? @db.Decimal(10, 2)
+  variancePercent  Decimal? @map("variance_percent") @db.Decimal(5, 2)
+  
+  // Valuation
+  unitCost       Decimal? @map("unit_cost") @db.Decimal(10, 2)
+  varianceValue  Decimal? @map("variance_value") @db.Decimal(10, 2)
+  
+  // Status
+  status String @default("pending") // pending, audited, adjusted, approved
+  
+  // Notes and reasons
+  varianceReason String? @map("variance_reason")
+  notes          String?
+  
+  // Photos/evidence
+  photoUrls Json @default("[]") @map("photo_urls")
+  
+  auditedBy String?   @map("audited_by")
+  auditedAt DateTime? @map("audited_at")
+  
+  // Relations
+  inventoryAudit InventoryAudit @relation(fields: [inventoryAuditId], references: [id], onDelete: Cascade)
+  
+  @@index([inventoryAuditId])
+  @@index([productId])
+  @@map("inventory_audit_items")
+}
+
+model InventoryAdjustment {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  
+  adjustmentNumber String @unique @map("adjustment_number")
+  adjustmentType   String @map("adjustment_type") // count_adjustment, damage, theft, loss, found, other
+  
+  // Quantities
+  quantityBefore Decimal @map("quantity_before") @db.Decimal(10, 2)
+  quantityAfter  Decimal @map("quantity_after") @db.Decimal(10, 2)
+  adjustmentQty  Decimal @map("adjustment_qty") @db.Decimal(10, 2)
+  
+  // Valuation
+  unitCost          Decimal? @map("unit_cost") @db.Decimal(10, 2)
+  totalValue        Decimal? @map("total_value") @db.Decimal(10, 2)
+  
+  // Reference
+  referenceType String? @map("reference_type") // audit, cycle_count, manual
+  referenceId   String? @map("reference_id")
+  inventoryAuditId String? @map("inventory_audit_id")
+  
+  // Location
+  warehouseId String? @map("warehouse_id")
+  binId       String? @map("bin_id")
+  lotId       String? @map("lot_id")
+  
+  // Reason
+  reason       String  @map("reason")
+  notes        String?
+  
+  // Approval
+  requiresApproval Boolean   @default(false) @map("requires_approval")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  rejectedBy       String?   @map("rejected_by")
+  rejectedAt       DateTime? @map("rejected_at")
+  rejectionReason  String?   @map("rejection_reason")
+  
+  // Status
+  status String @default("pending") // pending, approved, applied, rejected
+  
+  appliedBy String?   @map("applied_by")
+  appliedAt DateTime? @map("applied_at")
+  
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  inventoryAudit InventoryAudit? @relation(fields: [inventoryAuditId], references: [id])
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@index([status])
+  @@index([inventoryAuditId])
+  @@map("inventory_adjustments")
+}
+
+model AuditSchedule {
+  id          String  @id @default(uuid())
+  tenantId    String  @map("tenant_id")
+  warehouseId String? @map("warehouse_id")
+  
+  scheduleName String @map("schedule_name")
+  auditType    String @map("audit_type")
+  
+  // Frequency
+  frequency    String @map("frequency") // daily, weekly, monthly, quarterly, yearly
+  dayOfWeek    Int?   @map("day_of_week") // 0-6 for weekly
+  dayOfMonth   Int?   @map("day_of_month") // 1-31 for monthly
+  
+  // Scope
+  scope Json @default("{}") // what to audit
+  
+  // Assignment
+  assignedTo String? @map("assigned_to")
+  
+  // Next occurrence
+  nextScheduledDate DateTime @map("next_scheduled_date")
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([tenantId])
+  @@index([nextScheduledDate])
+  @@map("audit_schedules")
+}
+
+// ============================================
+// END OF ADVANCED INVENTORY SCHEMA
+// Total Models: 41 new models
+// Total Features: 50+ features
+// ============================================

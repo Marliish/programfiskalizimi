@@ -158,7 +158,7 @@ export class LoyaltyService {
 
   // Get all rewards
   async getRewards(tenantId: string, activeOnly = true) {
-    const whereClause = activeOnly ? 'AND is_active = true' : '';
+    const whereClause = activeOnly ? 'AND r.is_active = true' : '';
     
     return await prisma.$queryRawUnsafe(`
       SELECT r.*, p.name as product_name

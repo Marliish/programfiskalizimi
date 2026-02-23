@@ -144,37 +144,37 @@ export class AuditService {
 
   // Query audit logs
   async queryLogs(tenantId: string, query: QueryAuditLogsInput) {
-    let whereClause = 'WHERE tenant_id = $1';
+    let whereClause = 'WHERE al.tenant_id = $1';
     const params: any[] = [tenantId];
     let paramIndex = 2;
 
     if (query.userId) {
-      whereClause += ` AND user_id = $${paramIndex++}`;
+      whereClause += ` AND al.user_id = $${paramIndex++}`;
       params.push(query.userId);
     }
 
     if (query.action) {
-      whereClause += ` AND action = $${paramIndex++}`;
+      whereClause += ` AND al.action = $${paramIndex++}`;
       params.push(query.action);
     }
 
     if (query.entityType) {
-      whereClause += ` AND entity_type = $${paramIndex++}`;
+      whereClause += ` AND al.entity_type = $${paramIndex++}`;
       params.push(query.entityType);
     }
 
     if (query.entityId) {
-      whereClause += ` AND entity_id = $${paramIndex++}`;
+      whereClause += ` AND al.entity_id = $${paramIndex++}`;
       params.push(query.entityId);
     }
 
     if (query.startDate) {
-      whereClause += ` AND created_at >= $${paramIndex++}`;
+      whereClause += ` AND al.created_at >= $${paramIndex++}`;
       params.push(query.startDate);
     }
 
     if (query.endDate) {
-      whereClause += ` AND created_at <= $${paramIndex++}`;
+      whereClause += ` AND al.created_at <= $${paramIndex++}`;
       params.push(query.endDate);
     }
 
@@ -198,7 +198,7 @@ export class AuditService {
     // Get total count
     const countResult = await prisma.$queryRawUnsafe(`
       SELECT COUNT(*) as total
-      FROM audit_logs
+      FROM audit_logs al
       ${whereClause}
     `, ...params.slice(0, -2));
 

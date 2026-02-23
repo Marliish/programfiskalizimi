@@ -18,7 +18,15 @@ export async function auditRoutes(server: FastifyInstance) {
         const tenantId = (request.user as any).tenantId;
         const userId = (request.user as any).userId;
 
-        const query = validateRequest(queryAuditLogsSchema, request.query);
+        // Parse query parameters
+        const rawQuery = request.query as any;
+        const queryInput = {
+          ...rawQuery,
+          limit: rawQuery.limit ? parseInt(rawQuery.limit) : 100,
+          offset: rawQuery.offset ? parseInt(rawQuery.offset) : 0,
+        };
+        
+        const query = validateRequest(queryAuditLogsSchema, queryInput);
         const result = await auditService.queryLogs(tenantId, query);
 
         // Log the audit query itself

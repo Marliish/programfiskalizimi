@@ -1,0 +1,552 @@
+// ============================================
+// E-COMMERCE FEATURES SCHEMA
+// All 45 features for Team 2
+// ============================================
+
+// ============================================
+// 1. PRODUCT REVIEWS & RATINGS (8 features)
+// ============================================
+
+model ProductReview {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  customerId String @map("customer_id")
+  orderId   String? @map("order_id")
+  
+  // Review content
+  rating    Int     // 1-5 stars
+  title     String?
+  comment   String? @db.Text
+  
+  // Verified purchase badge
+  isVerifiedPurchase Boolean @default(false) @map("is_verified_purchase")
+  
+  // Moderation
+  status      String  @default("pending") // pending, approved, rejected
+  moderatedBy String? @map("moderated_by")
+  moderatedAt DateTime? @map("moderated_at")
+  
+  // Helpful votes
+  helpfulCount    Int @default(0) @map("helpful_count")
+  notHelpfulCount Int @default(0) @map("not_helpful_count")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  media    ReviewMedia[]
+  votes    ReviewVote[]
+  response ReviewResponse?
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@index([customerId])
+  @@index([status])
+  @@index([rating])
+  @@map("product_reviews")
+}
+
+model ReviewMedia {
+  id       String @id @default(uuid())
+  reviewId String @map("review_id")
+  
+  type     String // photo, video
+  url      String
+  mimeType String? @map("mime_type")
+  fileSize Int?    @map("file_size")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  review ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  
+  @@index([reviewId])
+  @@map("review_media")
+}
+
+model ReviewVote {
+  id         String @id @default(uuid())
+  reviewId   String @map("review_id")
+  customerId String @map("customer_id")
+  
+  isHelpful Boolean @map("is_helpful")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  review   ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@unique([reviewId, customerId])
+  @@index([reviewId])
+  @@map("review_votes")
+}
+
+model ReviewResponse {
+  id       String @id @default(uuid())
+  reviewId String @unique @map("review_id")
+  userId   String @map("user_id")
+  
+  response String @db.Text
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  review ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([reviewId])
+  @@map("review_responses")
+}
+
+// ============================================
+// 2. WISHLISTS & SAVED CARTS (6 features)
+// ============================================
+
+model Wishlist {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  customerId String  @map("customer_id")
+  
+  name        String
+  description String? @db.Text
+  isDefault   Boolean @default(false) @map("is_default")
+  isPublic    Boolean @default(false) @map("is_public")
+  shareToken  String? @unique @map("share_token")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items    WishlistItem[]
+  
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([shareToken])
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id         String @id @default(uuid())
+  wishlistId String @map("wishlist_id")
+  productId  String @map("product_id")
+  
+  notes     String?  @db.Text
+  priority  Int      @default(0) // 0=low, 1=medium, 2=high
+  quantity  Int      @default(1)
+  
+  // Price tracking
+  originalPrice Decimal? @map("original_price") @db.Decimal(10, 2)
+  currentPrice  Decimal? @map("current_price") @db.Decimal(10, 2)
+  priceDropAlert Boolean @default(false) @map("price_drop_alert")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([wishlistId, productId])
+  @@index([wishlistId])
+  @@index([productId])
+  @@map("wishlist_items")
+}
+
+model SavedCart {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  customerId String? @map("customer_id")
+  sessionId  String? @map("session_id")
+  
+  name      String?
+  cartData  Json    @map("cart_data") // Stores full cart state
+  
+  // Recovery
+  isAbandoned     Boolean   @default(false) @map("is_abandoned")
+  abandonedAt     DateTime? @map("abandoned_at")
+  recoveryEmailSent Boolean @default(false) @map("recovery_email_sent")
+  recoveryToken   String?   @unique @map("recovery_token")
+  
+  expiresAt DateTime? @map("expires_at")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([sessionId])
+  @@index([recoveryToken])
+  @@index([isAbandoned])
+  @@map("saved_carts")
+}
+
+// ============================================
+// 3. LIVE CHAT SUPPORT (7 features)
+// ============================================
+
+model ChatConversation {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  customerId String? @map("customer_id")
+  assignedTo String? @map("assigned_to")
+  
+  // Visitor info
+  visitorName  String? @map("visitor_name")
+  visitorEmail String? @map("visitor_email")
+  visitorIp    String? @map("visitor_ip")
+  userAgent    String? @map("user_agent")
+  
+  // Status
+  status       String  @default("open") // open, active, resolved, closed
+  priority     String  @default("normal") // low, normal, high, urgent
+  
+  // Metadata
+  tags         String[] @default([])
+  referrerUrl  String?  @map("referrer_url") @db.Text
+  currentUrl   String?  @map("current_url") @db.Text
+  
+  startedAt  DateTime  @default(now()) @map("started_at")
+  resolvedAt DateTime? @map("resolved_at")
+  closedAt   DateTime? @map("closed_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  agent    User?         @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  messages ChatMessage[]
+  
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([assignedTo])
+  @@index([status])
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id             String @id @default(uuid())
+  conversationId String @map("conversation_id")
+  senderId       String? @map("sender_id")
+  
+  // Message content
+  message     String  @db.Text
+  messageType String  @default("text") @map("message_type") // text, file, image, system
+  
+  // File attachments
+  fileUrl      String? @map("file_url")
+  fileName     String? @map("file_name")
+  fileSize     Int?    @map("file_size")
+  fileMimeType String? @map("file_mime_type")
+  
+  // Metadata
+  isFromAgent Boolean @default(false) @map("is_from_agent")
+  isRead      Boolean @default(false) @map("is_read")
+  readAt      DateTime? @map("read_at")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("chat_messages")
+}
+
+model ChatCannedResponse {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  userId   String? @map("user_id")
+  
+  title    String
+  message  String @db.Text
+  shortcut String? // Quick access code like /hello
+  category String?
+  
+  isShared  Boolean @default(false) @map("is_shared")
+  usageCount Int    @default(0) @map("usage_count")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([tenantId])
+  @@index([userId])
+  @@index([shortcut])
+  @@map("chat_canned_responses")
+}
+
+// ============================================
+// 4. ABANDONED CART RECOVERY (6 features)
+// ============================================
+
+model AbandonedCartRecovery {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  cartId   String @unique @map("cart_id")
+  
+  customerId    String?  @map("customer_id")
+  customerEmail String?  @map("customer_email")
+  cartValue     Decimal  @map("cart_value") @db.Decimal(10, 2)
+  itemCount     Int      @map("item_count")
+  
+  // Recovery sequences
+  sequenceStep   Int       @default(0) @map("sequence_step")
+  emailsSent     Int       @default(0) @map("emails_sent")
+  smsSent        Int       @default(0) @map("sms_sent")
+  lastContactAt  DateTime? @map("last_contact_at")
+  
+  // Discount incentive
+  discountCode   String?  @map("discount_code")
+  discountAmount Decimal? @map("discount_amount") @db.Decimal(10, 2)
+  discountType   String?  @map("discount_type") // percentage, fixed
+  
+  // Status
+  status       String   @default("active") // active, recovered, expired, ignored
+  recoveredAt  DateTime? @map("recovered_at")
+  expiredAt    DateTime? @map("expired_at")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cart     SavedCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  customer Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  
+  @@index([tenantId])
+  @@index([cartId])
+  @@index([customerId])
+  @@index([status])
+  @@map("abandoned_cart_recoveries")
+}
+
+// ============================================
+// 5. PRODUCT RECOMMENDATIONS (8 features)
+// ============================================
+
+model ProductRecommendation {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  productId  String @map("product_id")
+  customerId String? @map("customer_id")
+  
+  // Recommendation type
+  type       String @map("type") // ai-based, also-bought, frequently-together, trending, cross-sell, upsell
+  
+  // Related products (for also-bought, frequently-together)
+  relatedProducts String[] @default([]) @map("related_products")
+  
+  // AI scoring
+  score       Float?  @default(0)
+  reason      String? @db.Text
+  
+  // Personalization
+  isPersonalized Boolean @default(false) @map("is_personalized")
+  
+  // Performance tracking
+  impressions Int @default(0)
+  clicks      Int @default(0)
+  conversions Int @default(0)
+  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  expiresAt DateTime? @map("expires_at")
+  
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@index([customerId])
+  @@index([type])
+  @@map("product_recommendations")
+}
+
+model ProductView {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  productId  String @map("product_id")
+  customerId String? @map("customer_id")
+  sessionId  String? @map("session_id")
+  
+  viewDuration Int?    @map("view_duration") // seconds
+  referrer     String? @db.Text
+  deviceType   String? @map("device_type") // mobile, tablet, desktop
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@index([customerId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("product_views")
+}
+
+// ============================================
+// 6. SEO OPTIMIZATION (10 features)
+// ============================================
+
+model SeoMetadata {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  
+  // Target
+  entityType String  @map("entity_type") // product, category, page
+  entityId   String  @map("entity_id")
+  
+  // Meta tags
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description") @db.Text
+  metaKeywords    String? @map("meta_keywords") @db.Text
+  
+  // Open Graph
+  ogTitle       String? @map("og_title")
+  ogDescription String? @map("og_description") @db.Text
+  ogImage       String? @map("og_image")
+  ogType        String? @map("og_type") @default("website")
+  
+  // Twitter Card
+  twitterCard        String? @map("twitter_card") @default("summary_large_image")
+  twitterTitle       String? @map("twitter_title")
+  twitterDescription String? @map("twitter_description") @db.Text
+  twitterImage       String? @map("twitter_image")
+  
+  // URL & Canonical
+  customUrl    String? @unique @map("custom_url")
+  canonicalUrl String? @map("canonical_url")
+  
+  // Schema.org markup
+  schemaMarkup Json? @map("schema_markup")
+  
+  // Indexing
+  noIndex  Boolean @default(false) @map("no_index")
+  noFollow Boolean @default(false) @map("no_follow")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@unique([tenantId, entityType, entityId])
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([customUrl])
+  @@map("seo_metadata")
+}
+
+model SeoRedirect {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  
+  fromUrl    String  @map("from_url")
+  toUrl      String  @map("to_url")
+  statusCode Int     @default(301) @map("status_code") // 301, 302, 307, 308
+  isActive   Boolean @default(true) @map("is_active")
+  
+  // Analytics
+  hitCount  Int       @default(0) @map("hit_count")
+  lastHitAt DateTime? @map("last_hit_at")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@unique([tenantId, fromUrl])
+  @@index([tenantId])
+  @@index([fromUrl])
+  @@map("seo_redirects")
+}
+
+model SeoImageOptimization {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  
+  originalUrl   String  @map("original_url")
+  optimizedUrl  String  @map("optimized_url")
+  altText       String? @map("alt_text")
+  title         String?
+  
+  originalSize  Int @map("original_size") // bytes
+  optimizedSize Int @map("optimized_size") // bytes
+  compressionRatio Float @map("compression_ratio")
+  
+  width  Int?
+  height Int?
+  format String? // webp, jpg, png
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@index([originalUrl])
+  @@map("seo_image_optimizations")
+}
+
+// ============================================
+// UPDATE EXISTING MODELS WITH NEW RELATIONS
+// ============================================
+
+// Add to Product model:
+// reviews               ProductReview[]
+// wishlistItems         WishlistItem[]
+// recommendations       ProductRecommendation[]
+// views                 ProductView[]
+
+// Add to Customer model:
+// reviews               ProductReview[]
+// reviewVotes           ReviewVote[]
+// wishlists             Wishlist[]
+// savedCarts            SavedCart[]
+// chatConversations     ChatConversation[]
+// abandonedCarts        AbandonedCartRecovery[]
+// recommendations       ProductRecommendation[]
+// productViews          ProductView[]
+
+// Add to User model:
+// reviewResponses       ReviewResponse[]
+// chatMessages          ChatMessage[]
+// chatAssignments       ChatConversation[]
+// cannedResponses       ChatCannedResponse[]
+
+// Add to Tenant model:
+// productReviews        ProductReview[]
+// wishlists             Wishlist[]
+// savedCarts            SavedCart[]
+// chatConversations     ChatConversation[]
+// cannedResponses       ChatCannedResponse[]
+// abandonedCartRecoveries AbandonedCartRecovery[]
+// productRecommendations ProductRecommendation[]
+// productViews          ProductView[]
+// seoMetadata           SeoMetadata[]
+// seoRedirects          SeoRedirect[]
+// seoImageOptimizations SeoImageOptimization[]

@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "FiscalNext Mobile",
+    "slug": "fiscalnext-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fiscalnext.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan barcodes and capture receipts.",
+        "NSPhotoLibraryUsageDescription": "This app accesses photos to attach receipts.",
+        "NSLocationWhenInUseUsageDescription": "This app uses location for delivery tracking.",
+        "NSFaceIDUsageDescription": "Authenticate using Face ID"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ],
+      "package": "com.fiscalnext.mobile"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow FiscalNext to scan barcodes"
+        }
+      ],
+      [
+        "expo-barcode-scanner",
+        {
+          "cameraPermission": "Allow FiscalNext to scan barcodes"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow FiscalNext to use Face ID"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow FiscalNext to use your location for delivery tracking."
+        }
+      ]
+    ]
+  }
+}

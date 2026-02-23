@@ -1,0 +1,1022 @@
+// ============================================
+// MANUFACTURING MODELS - TEAM 4
+// Built by: Eroldi (CTO), Boli, Artan
+// Date: 2026-02-23
+// ============================================
+
+// ============================================
+// 1. BILL OF MATERIALS (BOM) - 10 Features
+// ============================================
+
+model BOM {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  
+  // BOM Details
+  productId    String   @map("product_id")
+  version      Int      @default(1)
+  name         String
+  description  String?
+  
+  // BOM Type
+  bomType      String   @default("production") @map("bom_type") // production, assembly, disassembly
+  
+  // Status & Approval
+  status       String   @default("draft") // draft, pending_approval, approved, archived
+  approvedBy   String?  @map("approved_by")
+  approvedAt   DateTime? @map("approved_at")
+  
+  // Costing
+  totalCost    Decimal  @default(0) @map("total_cost") @db.Decimal(15, 2)
+  
+  // Active version tracking
+  isActive     Boolean  @default(false) @map("is_active")
+  
+  // Metadata
+  notes        String?
+  createdBy    String   @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items        BOMItem[]
+  versions     BOMVersion[]
+  workOrders   WorkOrder[]
+  
+  @@unique([productId, version])
+  @@index([tenantId, status])
+  @@index([productId])
+  @@map("bom")
+}
+
+model BOMItem {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  bomId        String   @map("bom_id")
+  
+  // Component Details
+  componentId  String   @map("component_id")
+  quantity     Decimal  @db.Decimal(15, 4)
+  unit         String   @default("pieces")
+  
+  // Positioning (for nested BOMs)
+  parentItemId String?  @map("parent_item_id")
+  level        Int      @default(0) // 0 = top level, 1+ = nested
+  sequence     Int      @default(0) // Order in the BOM
+  
+  // Substitutions
+  isOptional   Boolean  @default(false) @map("is_optional")
+  
+  // Costing
+  unitCost     Decimal  @default(0) @map("unit_cost") @db.Decimal(15, 2)
+  totalCost    Decimal  @default(0) @map("total_cost") @db.Decimal(15, 2)
+  
+  // Metadata
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bom          BOM         @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  component    Product     @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  parentItem   BOMItem?    @relation("BOMItemHierarchy", fields: [parentItemId], references: [id])
+  childItems   BOMItem[]   @relation("BOMItemHierarchy")
+  substitutes  BOMSubstitution[] @relation("PrimaryComponent")
+  substitutedBy BOMSubstitution[] @relation("SubstituteComponent")
+  
+  @@index([bomId])
+  @@index([componentId])
+  @@index([tenantId])
+  @@map("bom_items")
+}
+
+model BOMSubstitution {
+  id                  String   @id @default(uuid())
+  tenantId            String   @map("tenant_id")
+  
+  primaryComponentId  String   @map("primary_component_id")
+  substituteComponentId String @map("substitute_component_id")
+  
+  // Substitution Details
+  conversionRatio     Decimal  @default(1) @map("conversion_ratio") @db.Decimal(15, 4)
+  priority            Int      @default(1) // Lower = higher priority
+  
+  // Conditions
+  isActive            Boolean  @default(true) @map("is_active")
+  notes               String?
+  
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  primaryComponent    BOMItem  @relation("PrimaryComponent", fields: [primaryComponentId], references: [id], onDelete: Cascade)
+  substituteComponent BOMItem  @relation("SubstituteComponent", fields: [substituteComponentId], references: [id], onDelete: Cascade)
+  
+  @@unique([primaryComponentId, substituteComponentId])
+  @@index([tenantId])
+  @@map("bom_substitutions")
+}
+
+model BOMVersion {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  bomId       String   @map("bom_id")
+  
+  // Version Details
+  version     Int
+  changeLog   String   @map("change_log")
+  changedBy   String   @map("changed_by")
+  changedAt   DateTime @default(now()) @map("changed_at")
+  
+  // Snapshot (JSON)
+  snapshot    Json     // Full BOM snapshot at this version
+  
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bom         BOM      @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  
+  @@index([bomId, version])
+  @@index([tenantId])
+  @@map("bom_versions")
+}
+
+// ============================================
+// 2. PRODUCTION PLANNING - 10 Features
+// ============================================
+
+model ProductionSchedule {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  // Schedule Details
+  name            String
+  description     String?
+  startDate       DateTime @map("start_date")
+  endDate         DateTime @map("end_date")
+  
+  // Planning
+  productId       String   @map("product_id")
+  plannedQuantity Decimal  @map("planned_quantity") @db.Decimal(15, 4)
+  completedQuantity Decimal @default(0) @map("completed_quantity") @db.Decimal(15, 4)
+  
+  // Status
+  status          String   @default("planned") // planned, in_progress, completed, cancelled
+  priority        String   @default("medium") // low, medium, high, urgent
+  
+  // Capacity Planning
+  machineId       String?  @map("machine_id")
+  shiftId         String?  @map("shift_id")
+  
+  // Lead Time
+  leadTimeDays    Int      @default(0) @map("lead_time_days")
+  
+  // Metadata
+  notes           String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  machine         ProductionMachine? @relation(fields: [machineId], references: [id])
+  shift           ProductionShift? @relation(fields: [shiftId], references: [id])
+  workOrders      WorkOrder[]
+  resourceAllocations ResourceAllocation[]
+  
+  @@index([tenantId, status])
+  @@index([productId])
+  @@index([startDate, endDate])
+  @@map("production_schedules")
+}
+
+model ProductionCalendar {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Calendar Details
+  name        String
+  description String?
+  
+  // Date
+  date        DateTime
+  isWorkingDay Boolean @default(true) @map("is_working_day")
+  
+  // Working Hours
+  startTime   String?  @map("start_time") // HH:mm format
+  endTime     String?  @map("end_time")   // HH:mm format
+  
+  // Type
+  dayType     String   @default("regular") // regular, holiday, maintenance, overtime
+  
+  // Metadata
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
+  @@map("production_calendars")
+}
+
+model ProductionShift {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  // Shift Details
+  name        String
+  description String?
+  
+  // Timing
+  startTime   String   @map("start_time") // HH:mm format
+  endTime     String   @map("end_time")   // HH:mm format
+  
+  // Days (JSON array of day numbers: 0=Sunday, 6=Saturday)
+  workingDays Json     @default("[1,2,3,4,5]") @map("working_days")
+  
+  // Capacity
+  capacityPercentage Decimal @default(100) @map("capacity_percentage") @db.Decimal(5, 2)
+  
+  // Status
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Metadata
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  schedules   ProductionSchedule[]
+  workOrders  WorkOrder[]
+  
+  @@index([tenantId])
+  @@map("production_shifts")
+}
+
+model ProductionMachine {
+  id                String   @id @default(uuid())
+  tenantId          String   @map("tenant_id")
+  
+  // Machine Details
+  name              String
+  code              String   @unique
+  description       String?
+  machineType       String   @map("machine_type")
+  
+  // Capacity
+  hoursPerDay       Decimal  @default(8) @map("hours_per_day") @db.Decimal(5, 2)
+  efficiencyRate    Decimal  @default(100) @map("efficiency_rate") @db.Decimal(5, 2)
+  
+  // Status
+  status            String   @default("available") // available, in_use, maintenance, down
+  
+  // Costs
+  hourlyCost        Decimal  @default(0) @map("hourly_cost") @db.Decimal(15, 2)
+  
+  // Metadata
+  locationId        String?  @map("location_id")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  schedules         ProductionSchedule[]
+  workOrders        WorkOrder[]
+  machineSchedules  MachineSchedule[]
+  
+  @@index([tenantId, status])
+  @@map("production_machines")
+}
+
+model MachineSchedule {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  machineId   String   @map("machine_id")
+  workOrderId String?  @map("work_order_id")
+  
+  // Schedule
+  startTime   DateTime @map("start_time")
+  endTime     DateTime @map("end_time")
+  
+  // Status
+  status      String   @default("scheduled") // scheduled, in_progress, completed, cancelled
+  
+  // Metadata
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  machine     ProductionMachine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id])
+  
+  @@index([machineId, startTime, endTime])
+  @@index([tenantId])
+  @@map("machine_schedules")
+}
+
+model ResourceAllocation {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  
+  scheduleId  String   @map("schedule_id")
+  
+  // Resource Details
+  resourceType String  @map("resource_type") // labor, machine, material
+  resourceId   String  @map("resource_id")
+  resourceName String  @map("resource_name")
+  
+  // Allocation
+  allocatedQuantity Decimal @map("allocated_quantity") @db.Decimal(15, 4)
+  unit             String  @default("hours")
+  
+  // Cost
+  unitCost         Decimal @default(0) @map("unit_cost") @db.Decimal(15, 2)
+  totalCost        Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+  
+  // Metadata
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  schedule    ProductionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  
+  @@index([scheduleId])
+  @@index([tenantId, resourceType])
+  @@map("resource_allocations")
+}
+
+model MaterialRequirement {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  // MRP Details
+  productId       String   @map("product_id")
+  requiredQuantity Decimal @map("required_quantity") @db.Decimal(15, 4)
+  availableQuantity Decimal @default(0) @map("available_quantity") @db.Decimal(15, 4)
+  shortageQuantity Decimal @default(0) @map("shortage_quantity") @db.Decimal(15, 4)
+  
+  // Timing
+  requiredByDate  DateTime @map("required_by_date")
+  
+  // Status
+  status          String   @default("pending") // pending, ordered, received, fulfilled
+  
+  // Source
+  sourceType      String   @map("source_type") // work_order, production_schedule, forecast
+  sourceId        String   @map("source_id")
+  
+  // Metadata
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId, status])
+  @@index([productId, requiredByDate])
+  @@map("material_requirements")
+}
+
+model ProductionForecast {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  // Forecast Details
+  productId       String   @map("product_id")
+  forecastPeriod  String   @map("forecast_period") // weekly, monthly, quarterly
+  
+  // Period
+  startDate       DateTime @map("start_date")
+  endDate         DateTime @map("end_date")
+  
+  // Quantities
+  forecastedQuantity Decimal @map("forecasted_quantity") @db.Decimal(15, 4)
+  actualQuantity     Decimal @default(0) @map("actual_quantity") @db.Decimal(15, 4)
+  variance           Decimal @default(0) @db.Decimal(15, 4)
+  
+  // Method
+  forecastMethod  String   @default("manual") @map("forecast_method") // manual, historical_average, trend_analysis
+  
+  // Metadata
+  notes           String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId, startDate, endDate])
+  @@index([productId])
+  @@map("production_forecasts")
+}
+
+// ============================================
+// 3. WORK ORDERS - 8 Features
+// ============================================
+
+model WorkOrder {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  // Work Order Details
+  workOrderNumber String   @unique @map("work_order_number")
+  name            String
+  description     String?
+  
+  // Product & BOM
+  productId       String   @map("product_id")
+  bomId           String?  @map("bom_id")
+  
+  // Quantities
+  plannedQuantity Decimal  @map("planned_quantity") @db.Decimal(15, 4)
+  completedQuantity Decimal @default(0) @map("completed_quantity") @db.Decimal(15, 4)
+  scrapQuantity   Decimal  @default(0) @map("scrap_quantity") @db.Decimal(15, 4)
+  
+  // Scheduling
+  scheduleId      String?  @map("schedule_id")
+  shiftId         String?  @map("shift_id")
+  machineId       String?  @map("machine_id")
+  
+  // Dates
+  plannedStartDate DateTime @map("planned_start_date")
+  plannedEndDate   DateTime @map("planned_end_date")
+  actualStartDate  DateTime? @map("actual_start_date")
+  actualEndDate    DateTime? @map("actual_end_date")
+  
+  // Status
+  status          String   @default("draft") // draft, released, in_progress, completed, cancelled
+  priority        String   @default("medium") // low, medium, high, urgent
+  
+  // Progress
+  progressPercentage Decimal @default(0) @map("progress_percentage") @db.Decimal(5, 2)
+  
+  // Costing
+  estimatedCost   Decimal  @default(0) @map("estimated_cost") @db.Decimal(15, 2)
+  actualCost      Decimal  @default(0) @map("actual_cost") @db.Decimal(15, 2)
+  
+  // Metadata
+  notes           String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  bom             BOM?     @relation(fields: [bomId], references: [id])
+  schedule        ProductionSchedule? @relation(fields: [scheduleId], references: [id])
+  shift           ProductionShift? @relation(fields: [shiftId], references: [id])
+  machine         ProductionMachine? @relation(fields: [machineId], references: [id])
+  operations      WorkOrderOperation[]
+  laborTracking   LaborTracking[]
+  machineTracking MachineTimeTracking[]
+  scrapRecords    ScrapRecord[]
+  qcCheckpoints   QCCheckpoint[]
+  costRecords     ProductionCostRecord[]
+  machineSchedules MachineSchedule[]
+  
+  @@index([tenantId, status])
+  @@index([productId])
+  @@index([workOrderNumber])
+  @@map("work_orders")
+}
+
+model WorkOrderOperation {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  workOrderId     String   @map("work_order_id")
+  
+  // Operation Details
+  operationNumber Int      @map("operation_number")
+  name            String
+  description     String?
+  
+  // Routing
+  sequence        Int      @default(0)
+  previousOpId    String?  @map("previous_operation_id")
+  
+  // Machine & Labor
+  machineId       String?  @map("machine_id")
+  requiredSkill   String?  @map("required_skill")
+  
+  // Time Estimates
+  setupTimeMinutes Decimal @default(0) @map("setup_time_minutes") @db.Decimal(10, 2)
+  runTimeMinutes   Decimal @default(0) @map("run_time_minutes") @db.Decimal(10, 2)
+  
+  // Actual Time
+  actualSetupMinutes Decimal @default(0) @map("actual_setup_minutes") @db.Decimal(10, 2)
+  actualRunMinutes   Decimal @default(0) @map("actual_run_minutes") @db.Decimal(10, 2)
+  
+  // Status
+  status          String   @default("pending") // pending, in_progress, completed, skipped
+  
+  // Completion
+  completedBy     String?  @map("completed_by")
+  completedAt     DateTime? @map("completed_at")
+  
+  // Metadata
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  
+  @@unique([workOrderId, operationNumber])
+  @@index([workOrderId, sequence])
+  @@index([tenantId])
+  @@map("work_order_operations")
+}
+
+model LaborTracking {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  workOrderId     String   @map("work_order_id")
+  employeeId      String   @map("employee_id")
+  
+  // Time Tracking
+  startTime       DateTime @map("start_time")
+  endTime         DateTime? @map("end_time")
+  totalHours      Decimal  @default(0) @map("total_hours") @db.Decimal(10, 2)
+  
+  // Operation
+  operationId     String?  @map("operation_id")
+  
+  // Cost
+  hourlyRate      Decimal  @default(0) @map("hourly_rate") @db.Decimal(15, 2)
+  totalCost       Decimal  @default(0) @map("total_cost") @db.Decimal(15, 2)
+  
+  // Metadata
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  
+  @@index([workOrderId])
+  @@index([employeeId])
+  @@index([tenantId])
+  @@map("labor_tracking")
+}
+
+model MachineTimeTracking {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  workOrderId     String   @map("work_order_id")
+  machineId       String   @map("machine_id")
+  
+  // Time Tracking
+  startTime       DateTime @map("start_time")
+  endTime         DateTime? @map("end_time")
+  totalHours      Decimal  @default(0) @map("total_hours") @db.Decimal(10, 2)
+  
+  // Downtime
+  downtimeHours   Decimal  @default(0) @map("downtime_hours") @db.Decimal(10, 2)
+  downtimeReason  String?  @map("downtime_reason")
+  
+  // Cost
+  hourlyRate      Decimal  @default(0) @map("hourly_rate") @db.Decimal(15, 2)
+  totalCost       Decimal  @default(0) @map("total_cost") @db.Decimal(15, 2)
+  
+  // Metadata
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  
+  @@index([workOrderId])
+  @@index([machineId])
+  @@index([tenantId])
+  @@map("machine_time_tracking")
+}
+
+model ScrapRecord {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  workOrderId     String   @map("work_order_id")
+  
+  // Scrap Details
+  quantity        Decimal  @db.Decimal(15, 4)
+  reason          String
+  category        String   @default("production") // production, material, quality, other
+  
+  // Cost Impact
+  costPerUnit     Decimal  @default(0) @map("cost_per_unit") @db.Decimal(15, 2)
+  totalCost       Decimal  @default(0) @map("total_cost") @db.Decimal(15, 2)
+  
+  // Responsible
+  reportedBy      String   @map("reported_by")
+  reportedAt      DateTime @default(now()) @map("reported_at")
+  
+  // Metadata
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  
+  @@index([workOrderId])
+  @@index([tenantId, reportedAt])
+  @@map("scrap_records")
+}
+
+// ============================================
+// 4. QUALITY CONTROL - 7 Features
+// ============================================
+
+model QCCheckpoint {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  workOrderId     String?  @map("work_order_id")
+  productId       String?  @map("product_id")
+  
+  // Checkpoint Details
+  checkpointName  String   @map("checkpoint_name")
+  checkpointType  String   @map("checkpoint_type") // incoming, in_process, final, random
+  
+  // Inspection
+  inspectionPlanId String? @map("inspection_plan_id")
+  
+  // Status
+  status          String   @default("pending") // pending, in_progress, passed, failed
+  
+  // Results
+  result          String?  // passed, failed, conditional
+  
+  // Inspector
+  inspectedBy     String?  @map("inspected_by")
+  inspectedAt     DateTime? @map("inspected_at")
+  
+  // Metadata
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder       WorkOrder? @relation(fields: [workOrderId], references: [id])
+  product         Product? @relation(fields: [productId], references: [id])
+  inspectionPlan  InspectionPlan? @relation(fields: [inspectionPlanId], references: [id])
+  qcReports       QCReport[]
+  
+  @@index([workOrderId])
+  @@index([productId])
+  @@index([tenantId, status])
+  @@map("qc_checkpoints")
+}
+
+model InspectionPlan {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  // Plan Details
+  name            String
+  description     String?
+  productId       String?  @map("product_id")
+  
+  // Type
+  inspectionType  String   @map("inspection_type") // incoming, in_process, final, periodic
+  
+  // Frequency
+  frequency       String   @default("every_unit") // every_unit, sample, periodic
+  sampleSize      Int?     @map("sample_size")
+  
+  // Criteria (JSON array)
+  criteria        Json     @default("[]") // [{ parameter, min, max, unit, method }]
+  
+  // Status
+  isActive        Boolean  @default(true) @map("is_active")
+  
+  // Metadata
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product         Product? @relation(fields: [productId], references: [id])
+  checkpoints     QCCheckpoint[]
+  
+  @@index([tenantId, isActive])
+  @@index([productId])
+  @@map("inspection_plans")
+}
+
+model QCReport {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  checkpointId    String   @map("checkpoint_id")
+  
+  // Report Details
+  reportNumber    String   @unique @map("report_number")
+  
+  // Results (JSON array)
+  measurements    Json     @default("[]") // [{ parameter, actual, expected, unit, status }]
+  
+  // Overall Result
+  overallResult   String   @map("overall_result") // passed, failed, conditional
+  
+  // Pass/Fail Summary
+  passedCount     Int      @default(0) @map("passed_count")
+  failedCount     Int      @default(0) @map("failed_count")
+  
+  // Defects
+  defectsFound    Json     @default("[]") @map("defects_found") // [{ defectType, quantity, severity }]
+  
+  // Inspector
+  inspectedBy     String   @map("inspected_by")
+  inspectedAt     DateTime @default(now()) @map("inspected_at")
+  
+  // Approval
+  approvedBy      String?  @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  
+  // Metadata
+  notes           String?
+  attachments     Json?    @default("[]") // Array of file paths
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  checkpoint      QCCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  defects         DefectTracking[]
+  correctiveActions CorrectiveAction[]
+  
+  @@index([checkpointId])
+  @@index([tenantId, inspectedAt])
+  @@map("qc_reports")
+}
+
+model DefectTracking {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  qcReportId      String?  @map("qc_report_id")
+  
+  // Defect Details
+  defectCode      String   @map("defect_code")
+  defectName      String   @map("defect_name")
+  defectType      String   @map("defect_type") // visual, dimensional, functional, material
+  
+  // Severity
+  severity        String   @default("minor") // minor, major, critical
+  
+  // Quantity
+  quantity        Decimal  @db.Decimal(15, 4)
+  
+  // Source
+  sourceType      String   @map("source_type") // work_order, inspection, customer_return
+  sourceId        String   @map("source_id")
+  
+  // Root Cause
+  rootCause       String?  @map("root_cause")
+  
+  // Status
+  status          String   @default("open") // open, investigating, resolved, closed
+  
+  // Assignment
+  assignedTo      String?  @map("assigned_to")
+  
+  // Dates
+  detectedAt      DateTime @default(now()) @map("detected_at")
+  resolvedAt      DateTime? @map("resolved_at")
+  
+  // Metadata
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  qcReport        QCReport? @relation(fields: [qcReportId], references: [id])
+  correctiveActions CorrectiveAction[]
+  
+  @@index([tenantId, status])
+  @@index([sourceId])
+  @@map("defect_tracking")
+}
+
+model CorrectiveAction {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  defectId        String?  @map("defect_id")
+  qcReportId      String?  @map("qc_report_id")
+  
+  // Action Details
+  actionNumber    String   @unique @map("action_number")
+  title           String
+  description     String
+  
+  // Action Type
+  actionType      String   @map("action_type") // immediate, preventive, corrective
+  
+  // Priority
+  priority        String   @default("medium") // low, medium, high, urgent
+  
+  // Assignment
+  assignedTo      String   @map("assigned_to")
+  dueDate         DateTime @map("due_date")
+  
+  // Status
+  status          String   @default("open") // open, in_progress, completed, verified, closed
+  
+  // Completion
+  completedBy     String?  @map("completed_by")
+  completedAt     DateTime? @map("completed_at")
+  
+  // Verification
+  verifiedBy      String?  @map("verified_by")
+  verifiedAt      DateTime? @map("verified_at")
+  verificationNotes String? @map("verification_notes")
+  
+  // Effectiveness
+  effectivenessRating Int? @map("effectiveness_rating") // 1-5 scale
+  
+  // Metadata
+  notes           String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defect          DefectTracking? @relation(fields: [defectId], references: [id])
+  qcReport        QCReport? @relation(fields: [qcReportId], references: [id])
+  
+  @@index([tenantId, status])
+  @@index([assignedTo])
+  @@index([dueDate])
+  @@map("corrective_actions")
+}
+
+// ============================================
+// 5. PRODUCTION COSTING - 5 Features
+// ============================================
+
+model ProductionCostRecord {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  workOrderId     String   @map("work_order_id")
+  
+  // Cost Type
+  costType        String   @map("cost_type") // direct_material, direct_labor, machine, overhead, other
+  costCategory    String   @map("cost_category")
+  
+  // Amount
+  unitCost        Decimal  @default(0) @map("unit_cost") @db.Decimal(15, 2)
+  quantity        Decimal  @default(1) @db.Decimal(15, 4)
+  totalCost       Decimal  @map("total_cost") @db.Decimal(15, 2)
+  
+  // Reference
+  referenceType   String?  @map("reference_type") // product, employee, machine, etc.
+  referenceId     String?  @map("reference_id")
+  referenceName   String?  @map("reference_name")
+  
+  // Allocation Method (for overhead)
+  allocationMethod String? @map("allocation_method") // labor_hours, machine_hours, units_produced
+  allocationBase   Decimal? @map("allocation_base") @db.Decimal(15, 4)
+  
+  // Metadata
+  notes           String?
+  recordedBy      String   @map("recorded_by")
+  recordedAt      DateTime @default(now()) @map("recorded_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  
+  @@index([workOrderId, costType])
+  @@index([tenantId, recordedAt])
+  @@map("production_cost_records")
+}
+
+model ProductionCostAnalysis {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  // Analysis Period
+  analysisName    String   @map("analysis_name")
+  startDate       DateTime @map("start_date")
+  endDate         DateTime @map("end_date")
+  
+  // Product Filter
+  productId       String?  @map("product_id")
+  
+  // Cost Summary
+  totalDirectMaterial Decimal @default(0) @map("total_direct_material") @db.Decimal(15, 2)
+  totalDirectLabor    Decimal @default(0) @map("total_direct_labor") @db.Decimal(15, 2)
+  totalMachineCost    Decimal @default(0) @map("total_machine_cost") @db.Decimal(15, 2)
+  totalOverhead       Decimal @default(0) @map("total_overhead") @db.Decimal(15, 2)
+  totalCost           Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+  
+  // Production Metrics
+  totalUnitsProduced  Decimal @default(0) @map("total_units_produced") @db.Decimal(15, 4)
+  costPerUnit         Decimal @default(0) @map("cost_per_unit") @db.Decimal(15, 2)
+  
+  // Variance
+  standardCost        Decimal? @map("standard_cost") @db.Decimal(15, 2)
+  costVariance        Decimal? @map("cost_variance") @db.Decimal(15, 2)
+  variancePercentage  Decimal? @map("variance_percentage") @db.Decimal(5, 2)
+  
+  // Breakdown (JSON)
+  costBreakdown       Json     @default("{}") @map("cost_breakdown")
+  
+  // Metadata
+  generatedBy     String   @map("generated_by")
+  generatedAt     DateTime @default(now()) @map("generated_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product         Product? @relation(fields: [productId], references: [id])
+  
+  @@index([tenantId, startDate, endDate])
+  @@index([productId])
+  @@map("production_cost_analysis")
+}
+
+// ============================================
+// BOTTLENECK ANALYSIS
+// ============================================
+
+model BottleneckAnalysis {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  
+  // Analysis Details
+  analysisName    String   @map("analysis_name")
+  analysisDate    DateTime @default(now()) @map("analysis_date")
+  
+  // Bottleneck Resource
+  resourceType    String   @map("resource_type") // machine, labor, material, process
+  resourceId      String   @map("resource_id")
+  resourceName    String   @map("resource_name")
+  
+  // Metrics
+  utilizationRate Decimal  @map("utilization_rate") @db.Decimal(5, 2) // Percentage
+  capacityHours   Decimal  @map("capacity_hours") @db.Decimal(10, 2)
+  usedHours       Decimal  @map("used_hours") @db.Decimal(10, 2)
+  idleHours       Decimal  @map("idle_hours") @db.Decimal(10, 2)
+  
+  // Impact
+  delayedOrders   Int      @default(0) @map("delayed_orders")
+  impactScore     Decimal  @default(0) @map("impact_score") @db.Decimal(5, 2)
+  
+  // Recommendations
+  recommendations Json     @default("[]")
+  
+  // Severity
+  severity        String   @default("medium") // low, medium, high, critical
+  
+  // Status
+  status          String   @default("identified") // identified, investigating, resolving, resolved
+  
+  // Metadata
+  notes           String?
+  analyzedBy      String   @map("analyzed_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId, analysisDate])
+  @@index([resourceType, resourceId])
+  @@map("bottleneck_analysis")
+}

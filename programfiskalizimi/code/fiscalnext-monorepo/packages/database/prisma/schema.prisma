@@ -15,135 +15,206 @@ datasource db {
 // ============================================
 
 model Tenant {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  
+  id   String @id @default(uuid())
+  name String
+  slug String @unique
+
   // Business Details
-  businessType String?  @map("business_type") // retail, restaurant, etc.
-  nipt         String?  // Tax ID (Albania/Kosovo)
+  businessType String? @map("business_type") // retail, restaurant, etc.
+  nipt         String? // Tax ID (Albania/Kosovo)
   address      String?
   city         String?
-  country      String   @default("AL") // AL or XK
+  country      String  @default("AL") // AL or XK
   phone        String?
   email        String?
-  logoUrl      String?  @map("logo_url")
-  
+  logoUrl      String? @map("logo_url")
+
   // Subscription
   subscriptionPlan   String?   @default("trial") @map("subscription_plan")
   subscriptionStatus String?   @default("active") @map("subscription_status")
   trialEndsAt        DateTime? @map("trial_ends_at")
-  
+
   // Settings (JSON for flexible configuration)
   settings Json? @default("{}")
-  
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   // Relations
-  users           User[]
-  products        Product[]
-  categories      Category[]
-  stock           Stock[]
-  stockMovements  StockMovement[]
-  transactions    Transaction[]
-  locations       Location[]
-  customers       Customer[]
-  roles           Role[]
-  fiscalReceipts  FiscalReceipt[]
-  taxSettings     TaxSettings[]
-  stockTransfers  StockTransfer[]
-  analyticsCache  AnalyticsCache[]
-  
+  users          User[]
+  products       Product[]
+  categories     Category[]
+  stock          Stock[]
+  stockMovements StockMovement[]
+  transactions   Transaction[]
+  locations      Location[]
+  customers      Customer[]
+  roles          Role[]
+  fiscalReceipts FiscalReceipt[]
+  taxSettings    TaxSettings[]
+  stockTransfers StockTransfer[]
+  analyticsCache AnalyticsCache[]
+
+  // Financial & HR Relations
+  employees            Employee[]
+  payrollRuns          PayrollRun[]
+  expenseCategories    ExpenseCategory[]
+  expenses             Expense[]
+  vendors              Vendor[]
+  bills                Bill[]
+  bankAccounts         BankAccount[]
+  bankReconciliations  BankReconciliation[]
+  onboardingChecklists OnboardingChecklist[]
+  trainingModules      TrainingModule[]
+  performanceReviews   PerformanceReview[]
+  timeOffRequests      TimeOffRequest[]
+  employeeDocuments    EmployeeDocument[]
+
+  // Marketing & Campaigns Relations
+  customerSegments    CustomerSegment[]
+  emailCampaigns      EmailCampaign[]
+  emailTemplates      EmailTemplate[]
+  smsCampaigns        SmsCampaign[]
+  surveys             Survey[]
+  referralPrograms    ReferralProgram[]
+  socialPosts         SocialPost[]
+  socialReviews       SocialReview[]
+  socialAccounts      SocialAccount[]
+  automationWorkflows AutomationWorkflow[]
+
+  // E-commerce Relations
+  productReviews          ProductReview[]
+  wishlists               Wishlist[]
+  savedCarts              SavedCart[]
+  chatConversations       ChatConversation[]
+  cannedResponses         ChatCannedResponse[]
+  abandonedCartRecoveries AbandonedCartRecovery[]
+  productRecommendations  ProductRecommendation[]
+  productViews            ProductView[]
+  seoMetadata             SeoMetadata[]
+  seoRedirects            SeoRedirect[]
+  seoImageOptimizations   SeoImageOptimization[]
+  BOM                     BOM[]
+  BOMItem                 BOMItem[]
+  BOMSubstitution         BOMSubstitution[]
+  BOMVersion              BOMVersion[]
+  ProductionSchedule      ProductionSchedule[]
+  ProductionCalendar      ProductionCalendar[]
+  ProductionShift         ProductionShift[]
+  ProductionMachine       ProductionMachine[]
+  MachineSchedule         MachineSchedule[]
+  ResourceAllocation      ResourceAllocation[]
+  MaterialRequirement     MaterialRequirement[]
+  ProductionForecast      ProductionForecast[]
+  WorkOrder               WorkOrder[]
+  WorkOrderOperation      WorkOrderOperation[]
+  LaborTracking           LaborTracking[]
+  MachineTimeTracking     MachineTimeTracking[]
+  ScrapRecord             ScrapRecord[]
+  QCCheckpoint            QCCheckpoint[]
+  InspectionPlan          InspectionPlan[]
+  QCReport                QCReport[]
+  DefectTracking          DefectTracking[]
+  CorrectiveAction        CorrectiveAction[]
+  ProductionCostRecord    ProductionCostRecord[]
+  ProductionCostAnalysis  ProductionCostAnalysis[]
+  BottleneckAnalysis      BottleneckAnalysis[]
+
   @@map("tenants")
 }
 
 model User {
-  id           String   @id @default(uuid())
-  tenantId     String   @map("tenant_id")
-  
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  firstName    String?  @map("first_name")
-  lastName     String?  @map("last_name")
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  firstName    String? @map("first_name")
+  lastName     String? @map("last_name")
   phone        String?
-  avatarUrl    String?  @map("avatar_url")
-  
+  avatarUrl    String? @map("avatar_url")
+
   // Status
-  isActive      Boolean  @default(true) @map("is_active")
-  emailVerified Boolean  @default(false) @map("email_verified")
-  
+  isActive      Boolean @default(true) @map("is_active")
+  emailVerified Boolean @default(false) @map("email_verified")
+
   // Security
-  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  twoFactorEnabled Boolean   @default(false) @map("two_factor_enabled")
   lastLoginAt      DateTime? @map("last_login_at")
-  
+
   // Email verification
-  emailVerificationToken     String? @map("email_verification_token")
+  emailVerificationToken     String?   @map("email_verification_token")
   emailVerificationExpiresAt DateTime? @map("email_verification_expires_at")
-  
+
   // Password reset
-  passwordResetToken     String? @map("password_reset_token")
+  passwordResetToken     String?   @map("password_reset_token")
   passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
-  
+
   // User preferences (JSON)
   preferences Json? @default("{}")
-  
+
   // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
-  
+
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id])
   userRoles      UserRole[]
   transactions   Transaction[]
   stockMovements StockMovement[]
-  
+
+  // E-commerce Relations
+  reviewResponses ReviewResponse[]
+  chatMessages    ChatMessage[]
+  chatAssignments ChatConversation[]
+  cannedResponses ChatCannedResponse[]
+
   @@index([tenantId])
   @@index([email])
   @@map("users")
 }
 
 model Role {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  
-  name        String   // owner, manager, cashier, accountant
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String // owner, manager, cashier, accountant
   description String?
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   // Relations
-  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
   userRoles       UserRole[]
   rolePermissions RolePermission[]
-  
+
   @@unique([tenantId, name])
   @@map("roles")
 }
 
 model Permission {
-  id          String   @id @default(uuid())
-  name        String   @unique // pos.create, inventory.edit, etc.
+  id          String  @id @default(uuid())
+  name        String  @unique // pos.create, inventory.edit, etc.
   description String?
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   // Relations
   rolePermissions RolePermission[]
-  
+
   @@map("permissions")
 }
 
 model UserRole {
   userId String @map("user_id")
   roleId String @map("role_id")
-  
+
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  
+
   @@id([userId, roleId])
   @@map("user_roles")
 }
@@ -151,11 +222,11 @@ model UserRole {
 model RolePermission {
   roleId       String @map("role_id")
   permissionId String @map("permission_id")
-  
+
   // Relations
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  
+
   @@id([roleId, permissionId])
   @@map("role_permissions")
 }
@@ -165,43 +236,58 @@ model RolePermission {
 // ============================================
 
 model Product {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  categoryId  String?  @map("category_id")
-  
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  categoryId String? @map("category_id")
+
   name        String
   description String?
   sku         String?
   barcode     String?
-  
+
   // Pricing
   costPrice    Decimal? @map("cost_price") @db.Decimal(10, 2)
   sellingPrice Decimal  @map("selling_price") @db.Decimal(10, 2)
   taxRate      Decimal  @default(20.00) @map("tax_rate") @db.Decimal(5, 2)
-  
+
   // Inventory
-  unit              String  @default("pieces") // pieces, kg, liters
-  trackInventory    Boolean @default(true) @map("track_inventory")
-  
+  unit           String  @default("pieces") // pieces, kg, liters
+  trackInventory Boolean @default(true) @map("track_inventory")
+
   // Status
-  isActive  Boolean @default(true) @map("is_active")
-  
+  isActive Boolean @default(true) @map("is_active")
+
   // Media
-  imageUrl  String? @map("image_url")
-  
+  imageUrl String? @map("image_url")
+
   // Timestamps
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
-  
+
   // Relations
-  tenant              Tenant              @relation(fields: [tenantId], references: [id])
-  category            Category?           @relation(fields: [categoryId], references: [id])
-  stock               Stock[]
-  stockMovements      StockMovement[]
-  transactionItems    TransactionItem[]
-  stockTransferItems  StockTransferItem[]
-  
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  stock              Stock[]
+  stockMovements     StockMovement[]
+  transactionItems   TransactionItem[]
+  stockTransferItems StockTransferItem[]
+
+  // E-commerce relations
+  reviews                ProductReview[]
+  wishlistItems          WishlistItem[]
+  recommendations        ProductRecommendation[]
+  views                  ProductView[]
+  BOM                    BOM[]
+  BOMItem                BOMItem[]
+  ProductionSchedule     ProductionSchedule[]
+  MaterialRequirement    MaterialRequirement[]
+  ProductionForecast     ProductionForecast[]
+  WorkOrder              WorkOrder[]
+  QCCheckpoint           QCCheckpoint[]
+  InspectionPlan         InspectionPlan[]
+  ProductionCostAnalysis ProductionCostAnalysis[]
+
   @@index([tenantId])
   @@index([barcode])
   @@index([sku])
@@ -213,19 +299,19 @@ model Category {
   id       String  @id @default(uuid())
   tenantId String  @map("tenant_id")
   parentId String? @map("parent_id")
-  
+
   name      String
   sortOrder Int     @default(0) @map("sort_order")
   isActive  Boolean @default(true) @map("is_active")
-  
+
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   // Relations
   tenant   Tenant     @relation(fields: [tenantId], references: [id])
   products Product[]
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
   children Category[] @relation("CategoryTree")
-  
+
   @@index([tenantId])
   @@index([parentId])
   @@map("categories")
@@ -236,49 +322,49 @@ model Stock {
   tenantId   String  @map("tenant_id")
   productId  String  @map("product_id")
   locationId String? @map("location_id")
-  
-  quantity           Decimal @default(0) @db.Decimal(10, 2)
-  lowStockThreshold  Decimal @default(10) @map("low_stock_threshold") @db.Decimal(10, 2)
-  
+
+  quantity          Decimal @default(0) @db.Decimal(10, 2)
+  lowStockThreshold Decimal @default(10) @map("low_stock_threshold") @db.Decimal(10, 2)
+
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   // Relations
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   product  Product   @relation(fields: [productId], references: [id])
   location Location? @relation(fields: [locationId], references: [id])
-  
+
   @@unique([productId, locationId])
   @@index([tenantId])
   @@map("stock")
 }
 
 model StockMovement {
-  id         String @id @default(uuid())
-  tenantId   String @map("tenant_id")
-  productId  String @map("product_id")
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  productId  String  @map("product_id")
   locationId String? @map("location_id")
-  userId     String @map("user_id")
-  
+  userId     String  @map("user_id")
+
   // Movement details
   type           String  @map("type") // in, out, adjustment, sale, return
   quantity       Decimal @db.Decimal(10, 2)
   quantityBefore Decimal @map("quantity_before") @db.Decimal(10, 2)
   quantityAfter  Decimal @map("quantity_after") @db.Decimal(10, 2)
-  
+
   // Reference
   referenceType String? @map("reference_type") // transaction, adjustment, transfer
   referenceId   String? @map("reference_id")
-  
+
   notes String?
-  
+
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   // Relations
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   product  Product   @relation(fields: [productId], references: [id])
   location Location? @relation(fields: [locationId], references: [id])
   user     User      @relation(fields: [userId], references: [id])
-  
+
   @@index([tenantId])
   @@index([productId])
   @@index([createdAt])
@@ -290,43 +376,43 @@ model StockMovement {
 // ============================================
 
 model Transaction {
-  id                String   @id @default(uuid())
-  tenantId          String   @map("tenant_id")
-  locationId        String?  @map("location_id")
-  userId            String   @map("user_id") // Cashier
-  customerId        String?  @map("customer_id")
-  
-  transactionNumber String   @unique @map("transaction_number")
-  
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  locationId String? @map("location_id")
+  userId     String  @map("user_id") // Cashier
+  customerId String? @map("customer_id")
+
+  transactionNumber String @unique @map("transaction_number")
+
   // Status
   status String @default("completed") // completed, voided, refunded
-  
+
   // Amounts
   subtotal       Decimal @map("subtotal") @db.Decimal(10, 2)
   taxAmount      Decimal @map("tax_amount") @db.Decimal(10, 2)
   discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(10, 2)
   total          Decimal @db.Decimal(10, 2)
-  
+
   // Fiscal
   fiscalReceiptId String? @map("fiscal_receipt_id")
-  
+
   // Metadata
   notes String?
-  
+
   // Timestamps
   createdAt DateTime  @default(now()) @map("created_at")
   voidedAt  DateTime? @map("voided_at")
   voidedBy  String?   @map("voided_by")
-  
+
   // Relations
-  tenant           Tenant            @relation(fields: [tenantId], references: [id])
-  location         Location?         @relation(fields: [locationId], references: [id])
-  user             User              @relation(fields: [userId], references: [id])
-  customer         Customer?         @relation(fields: [customerId], references: [id])
-  items            TransactionItem[]
-  payments         Payment[]
-  fiscalReceipt    FiscalReceipt?    @relation(fields: [fiscalReceiptId], references: [id])
-  
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  location      Location?         @relation(fields: [locationId], references: [id])
+  user          User              @relation(fields: [userId], references: [id])
+  customer      Customer?         @relation(fields: [customerId], references: [id])
+  items         TransactionItem[]
+  payments      Payment[]
+  fiscalReceipt FiscalReceipt?    @relation(fields: [fiscalReceiptId], references: [id])
+
   @@index([tenantId])
   @@index([transactionNumber])
   @@index([createdAt])
@@ -338,22 +424,22 @@ model TransactionItem {
   id            String @id @default(uuid())
   transactionId String @map("transaction_id")
   productId     String @map("product_id")
-  
-  productName String @map("product_name")
+
+  productName String  @map("product_name")
   sku         String?
-  
+
   quantity       Decimal @db.Decimal(10, 2)
   unitPrice      Decimal @map("unit_price") @db.Decimal(10, 2)
   taxRate        Decimal @map("tax_rate") @db.Decimal(5, 2)
   discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(10, 2)
-  
+
   subtotal Decimal @db.Decimal(10, 2)
   total    Decimal @db.Decimal(10, 2)
-  
+
   // Relations
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   product     Product     @relation(fields: [productId], references: [id])
-  
+
   @@index([transactionId])
   @@index([productId])
   @@map("transaction_items")
@@ -362,16 +448,16 @@ model TransactionItem {
 model Payment {
   id            String @id @default(uuid())
   transactionId String @map("transaction_id")
-  
+
   paymentMethod   String  @map("payment_method") // cash, card, mobile, bank_transfer
   amount          Decimal @db.Decimal(10, 2)
   referenceNumber String? @map("reference_number")
-  
+
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   // Relations
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  
+
   @@index([transactionId])
   @@map("payments")
 }
@@ -384,34 +470,34 @@ model FiscalReceipt {
   id            String @id @default(uuid())
   tenantId      String @map("tenant_id")
   transactionId String @unique @map("transaction_id")
-  
+
   country String @default("AL") // AL or XK
-  
+
   fiscalNumber String? @map("fiscal_number") // NSLF from tax authority
   iic          String? // Internal Invoice Code (SHA-256 hash)
   qrCode       String? @map("qr_code") // QR code content
   qrCodeUrl    String? @map("qr_code_url") // QR code image URL
-  
+
   // Submission
   submissionStatus String    @default("pending") @map("submission_status") // pending, submitted, failed
   submittedAt      DateTime? @map("submitted_at")
   responseData     Json?     @map("response_data")
   errorMessage     String?   @map("error_message")
   retryCount       Int       @default(0) @map("retry_count")
-  
+
   // Verification
   verificationStatus String?   @default("unverified") @map("verification_status") // unverified, verified, invalid
   verifiedAt         DateTime? @map("verified_at")
-  
+
   // Retention (90 days for compliance)
   expiresAt DateTime? @map("expires_at")
-  
+
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   // Relations
   tenant       Tenant        @relation(fields: [tenantId], references: [id])
   transactions Transaction[]
-  
+
   @@index([tenantId])
   @@index([submissionStatus])
   @@index([iic])
@@ -426,25 +512,25 @@ model FiscalReceipt {
 model Location {
   id       String @id @default(uuid())
   tenantId String @map("tenant_id")
-  
+
   name    String
   type    String  @default("store") // store, warehouse
   address String?
   city    String?
   phone   String?
-  
+
   isActive Boolean @default(true) @map("is_active")
-  
+
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   // Relations
-  tenant            Tenant          @relation(fields: [tenantId], references: [id])
-  stock             Stock[]
-  stockMovements    StockMovement[]
-  transactions      Transaction[]
-  transfersFrom     StockTransfer[] @relation("TransfersFrom")
-  transfersTo       StockTransfer[] @relation("TransfersTo")
-  
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  stock          Stock[]
+  stockMovements StockMovement[]
+  transactions   Transaction[]
+  transfersFrom  StockTransfer[] @relation("TransfersFrom")
+  transfersTo    StockTransfer[] @relation("TransfersTo")
+
   @@index([tenantId])
   @@map("locations")
 }
@@ -452,24 +538,42 @@ model Location {
 model Customer {
   id       String @id @default(uuid())
   tenantId String @map("tenant_id")
-  
-  firstName String? @map("first_name")
-  lastName  String? @map("last_name")
+
+  firstName String?   @map("first_name")
+  lastName  String?   @map("last_name")
   email     String?
   phone     String?
   birthday  DateTime?
-  
+
   // Loyalty
   loyaltyPoints Int     @default(0) @map("loyalty_points")
   totalSpent    Decimal @default(0) @map("total_spent") @db.Decimal(10, 2)
-  
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   // Relations
   tenant       Tenant        @relation(fields: [tenantId], references: [id])
   transactions Transaction[]
-  
+
+  // Marketing Relations
+  emailCampaignRecipients EmailCampaignRecipient[]
+  smsCampaignRecipients   SmsCampaignRecipient[]
+  surveyResponses         SurveyResponse[]
+  referralsMade           Referral[]               @relation("CustomerReferrals")
+  referralsReceived       Referral[]               @relation("CustomerReferees")
+  automationExecutions    AutomationExecution[]
+
+  // E-commerce Relations
+  reviews           ProductReview[]
+  reviewVotes       ReviewVote[]
+  wishlists         Wishlist[]
+  savedCarts        SavedCart[]
+  chatConversations ChatConversation[]
+  abandonedCarts    AbandonedCartRecovery[]
+  recommendations   ProductRecommendation[]
+  productViews      ProductView[]
+
   @@index([tenantId])
   @@index([phone])
   @@index([email])
@@ -484,37 +588,37 @@ model TaxSettings {
   id       String @id @default(uuid())
   tenantId String @map("tenant_id")
   country  String // AL or XK
-  
+
   // Albania DGT settings
-  dgtUsername              String? @map("dgt_username")
-  dgtPasswordEncrypted     String? @map("dgt_password_encrypted")
-  dgtCertificate           String? @map("dgt_certificate")
+  dgtUsername                     String? @map("dgt_username")
+  dgtPasswordEncrypted            String? @map("dgt_password_encrypted")
+  dgtCertificate                  String? @map("dgt_certificate")
   dgtCertificatePasswordEncrypted String? @map("dgt_certificate_password_encrypted")
-  dgtEndpoint              String? @default("https://efiskalizimi-app-test.tatime.gov.al/api/") @map("dgt_endpoint")
-  
+  dgtEndpoint                     String? @default("https://efiskalizimi-app-test.tatime.gov.al/api/") @map("dgt_endpoint")
+
   // Kosovo ATK settings
-  atkUsername              String? @map("atk_username")
-  atkPasswordEncrypted     String? @map("atk_password_encrypted")
-  atkCertificate           String? @map("atk_certificate")
+  atkUsername                     String? @map("atk_username")
+  atkPasswordEncrypted            String? @map("atk_password_encrypted")
+  atkCertificate                  String? @map("atk_certificate")
   atkCertificatePasswordEncrypted String? @map("atk_certificate_password_encrypted")
-  atkEndpoint              String? @default("https://efisc-test.atk-ks.org/api/") @map("atk_endpoint")
-  
+  atkEndpoint                     String? @default("https://efisc-test.atk-ks.org/api/") @map("atk_endpoint")
+
   // Certificate status
   certificateStatus    String?   @default("not_uploaded") @map("certificate_status") // not_uploaded, valid, expired, invalid
   certificateExpiresAt DateTime? @map("certificate_expires_at")
   lastVerifiedAt       DateTime? @map("last_verified_at")
-  
+
   // Integration status
   integrationEnabled Boolean   @default(false) @map("integration_enabled")
   testMode           Boolean   @default(true) @map("test_mode")
   lastSubmissionAt   DateTime? @map("last_submission_at")
-  
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  
+
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  
+
   @@unique([tenantId, country])
   @@index([tenantId])
   @@map("tax_settings")
@@ -526,22 +630,22 @@ model StockTransfer {
   fromLocationId String? @map("from_location_id")
   toLocationId   String  @map("to_location_id")
   userId         String  @map("user_id")
-  
-  transferNumber String  @unique @map("transfer_number")
-  status         String  @default("pending") // pending, in_transit, completed, cancelled
-  
+
+  transferNumber String @unique @map("transfer_number")
+  status         String @default("pending") // pending, in_transit, completed, cancelled
+
   notes String?
-  
+
   createdAt   DateTime  @default(now()) @map("created_at")
   completedAt DateTime? @map("completed_at")
   cancelledAt DateTime? @map("cancelled_at")
-  
+
   // Relations
-  tenant       Tenant               @relation(fields: [tenantId], references: [id])
-  fromLocation Location?            @relation("TransfersFrom", fields: [fromLocationId], references: [id])
-  toLocation   Location             @relation("TransfersTo", fields: [toLocationId], references: [id])
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  fromLocation Location?           @relation("TransfersFrom", fields: [fromLocationId], references: [id])
+  toLocation   Location            @relation("TransfersTo", fields: [toLocationId], references: [id])
   items        StockTransferItem[]
-  
+
   @@index([tenantId])
   @@index([fromLocationId])
   @@index([toLocationId])
@@ -553,15 +657,15 @@ model StockTransferItem {
   id         String @id @default(uuid())
   transferId String @map("transfer_id")
   productId  String @map("product_id")
-  
+
   productName String  @map("product_name")
   quantity    Decimal @db.Decimal(10, 2)
   unit        String  @default("pieces")
-  
+
   // Relations
   transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
   product  Product       @relation(fields: [productId], references: [id])
-  
+
   @@index([transferId])
   @@map("stock_transfer_items")
 }
@@ -571,21 +675,3954 @@ model AnalyticsCache {
   tenantId  String @map("tenant_id")
   cacheKey  String @map("cache_key")
   cacheType String @map("cache_type") // sales_trends, top_products, customer_insights
-  
+
   data       Json     @db.JsonB
   validUntil DateTime @map("valid_until")
-  
+
   createdAt DateTime @default(now()) @map("created_at")
-  
+
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  
+
   @@unique([tenantId, cacheKey])
   @@index([validUntil])
   @@map("analytics_cache")
 }
 
 // ============================================
-// Generated: 2026-02-23 by Backend Team
-// Version: 0.2.0 (Day 5 Features)
+// FINANCIAL & HR MANAGEMENT MODELS
 // ============================================
+
+// 1. PAYROLL SYSTEM
+model Employee {
+  id       String  @id @default(uuid())
+  tenantId String  @map("tenant_id")
+  userId   String? @map("user_id") // Optional link to User account
+
+  // Personal Information
+  firstName   String    @map("first_name")
+  lastName    String    @map("last_name")
+  email       String?
+  phone       String?
+  dateOfBirth DateTime? @map("date_of_birth")
+  nationalId  String?   @map("national_id") // SSN, Tax ID, etc.
+  address     String?
+  city        String?
+  country     String    @default("AL")
+
+  // Employment Details
+  employeeNumber  String    @unique @map("employee_number")
+  department      String?
+  position        String?
+  hireDate        DateTime  @map("hire_date")
+  terminationDate DateTime? @map("termination_date")
+  employmentType  String    @default("full_time") @map("employment_type") // full_time, part_time, contractor
+  status          String    @default("active") // active, on_leave, terminated
+
+  // Salary Information
+  salary            Decimal @db.Decimal(10, 2)
+  currency          String  @default("ALL")
+  payFrequency      String  @default("monthly") @map("pay_frequency") // monthly, biweekly, weekly
+  bankName          String? @map("bank_name")
+  bankAccountNumber String? @map("bank_account_number")
+
+  // Tax & Benefits
+  taxId                 String? @map("tax_id")
+  socialSecurityNumber  String? @map("social_security_number")
+  healthInsuranceNumber String? @map("health_insurance_number")
+
+  // Emergency Contact
+  emergencyContactName  String? @map("emergency_contact_name")
+  emergencyContactPhone String? @map("emergency_contact_phone")
+
+  // Avatar
+  avatarUrl String? @map("avatar_url")
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
+  payrollRunItems      PayrollRunItem[]
+  expenses             Expense[]
+  onboardingChecklists OnboardingChecklist[]
+  trainingEnrollments  TrainingEnrollment[]
+  performanceReviews   PerformanceReview[]
+  timeOffRequests      TimeOffRequest[]
+  documents            EmployeeDocument[]
+
+  @@index([tenantId])
+  @@index([employeeNumber])
+  @@index([status])
+  @@map("employees")
+}
+
+model PayrollRun {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  runNumber   String   @unique @map("run_number")
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  payDate     DateTime @map("pay_date")
+
+  status String @default("draft") // draft, approved, paid
+
+  totalGross      Decimal @default(0) @map("total_gross") @db.Decimal(12, 2)
+  totalDeductions Decimal @default(0) @map("total_deductions") @db.Decimal(12, 2)
+  totalNet        Decimal @default(0) @map("total_net") @db.Decimal(12, 2)
+
+  notes String?
+
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant           @relation(fields: [tenantId], references: [id])
+  items  PayrollRunItem[]
+
+  @@index([tenantId])
+  @@index([periodStart])
+  @@index([status])
+  @@map("payroll_runs")
+}
+
+model PayrollRunItem {
+  id           String @id @default(uuid())
+  payrollRunId String @map("payroll_run_id")
+  employeeId   String @map("employee_id")
+
+  // Gross Pay Components
+  baseSalary  Decimal @default(0) @map("base_salary") @db.Decimal(10, 2)
+  overtimePay Decimal @default(0) @map("overtime_pay") @db.Decimal(10, 2)
+  bonuses     Decimal @default(0) @db.Decimal(10, 2)
+  grossPay    Decimal @map("gross_pay") @db.Decimal(10, 2)
+
+  // Deductions
+  incomeTax       Decimal @default(0) @map("income_tax") @db.Decimal(10, 2)
+  socialSecurity  Decimal @default(0) @map("social_security") @db.Decimal(10, 2)
+  healthInsurance Decimal @default(0) @map("health_insurance") @db.Decimal(10, 2)
+  otherDeductions Decimal @default(0) @map("other_deductions") @db.Decimal(10, 2)
+  totalDeductions Decimal @map("total_deductions") @db.Decimal(10, 2)
+
+  // Net Pay
+  netPay Decimal @map("net_pay") @db.Decimal(10, 2)
+
+  // Payslip
+  payslipUrl String? @map("payslip_url")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+
+  @@index([payrollRunId])
+  @@index([employeeId])
+  @@map("payroll_run_items")
+}
+
+// 2. EXPENSE TRACKING
+model ExpenseCategory {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  expenses Expense[]
+
+  @@index([tenantId])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  categoryId String? @map("category_id")
+  employeeId String? @map("employee_id")
+  vendorId   String? @map("vendor_id")
+
+  expenseNumber String   @unique @map("expense_number")
+  description   String
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("ALL")
+  expenseDate   DateTime @map("expense_date")
+
+  // Receipt
+  receiptUrl    String? @map("receipt_url")
+  receiptNumber String? @map("receipt_number")
+
+  // Approval Workflow
+  status          String    @default("pending") // pending, approved, rejected, paid
+  submittedBy     String?   @map("submitted_by")
+  approvedBy      String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  rejectedBy      String?   @map("rejected_by")
+  rejectedAt      DateTime? @map("rejected_at")
+  rejectionReason String?   @map("rejection_reason")
+
+  // Payment
+  paidAt           DateTime? @map("paid_at")
+  paymentReference String?   @map("payment_reference")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  category ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  employee Employee?        @relation(fields: [employeeId], references: [id])
+  vendor   Vendor?          @relation(fields: [vendorId], references: [id])
+
+  @@index([tenantId])
+  @@index([categoryId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([expenseDate])
+  @@map("expenses")
+}
+
+// 3. BILL PAYMENTS
+model Vendor {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  vendorNumber String @unique @map("vendor_number")
+  name         String
+
+  // Contact Information
+  contactPerson String? @map("contact_person")
+  email         String?
+  phone         String?
+  website       String?
+
+  // Address
+  address String?
+  city    String?
+  country String  @default("AL")
+
+  // Tax Details
+  taxId     String? @map("tax_id")
+  vatNumber String? @map("vat_number")
+
+  // Banking
+  bankName          String? @map("bank_name")
+  bankAccountNumber String? @map("bank_account_number")
+
+  // Payment Terms
+  paymentTerms    String? @map("payment_terms") // e.g., "Net 30"
+  defaultCurrency String  @default("ALL") @map("default_currency")
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  bills    Bill[]
+  expenses Expense[]
+
+  @@index([tenantId])
+  @@index([vendorNumber])
+  @@map("vendors")
+}
+
+model Bill {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  vendorId String @map("vendor_id")
+
+  billNumber          String  @unique @map("bill_number")
+  vendorInvoiceNumber String? @map("vendor_invoice_number")
+
+  // Dates
+  billDate DateTime @map("bill_date")
+  dueDate  DateTime @map("due_date")
+
+  // Amounts
+  subtotal    Decimal @db.Decimal(10, 2)
+  taxAmount   Decimal @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  totalAmount Decimal @map("total_amount") @db.Decimal(10, 2)
+  paidAmount  Decimal @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  currency    String  @default("ALL")
+
+  // Status
+  status String @default("unpaid") // unpaid, partially_paid, paid, overdue
+
+  description String?
+  notes       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  vendor   Vendor        @relation(fields: [vendorId], references: [id])
+  payments BillPayment[]
+
+  @@index([tenantId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("bills")
+}
+
+model BillPayment {
+  id     String @id @default(uuid())
+  billId String @map("bill_id")
+
+  paymentDate     DateTime @map("payment_date")
+  amount          Decimal  @db.Decimal(10, 2)
+  paymentMethod   String   @map("payment_method") // cash, bank_transfer, card, etc.
+  referenceNumber String?  @map("reference_number")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bill Bill @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+  @@map("bill_payments")
+}
+
+// 4. BANK RECONCILIATION
+model BankAccount {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  accountNumber String @unique @map("account_number")
+  accountName   String @map("account_name")
+  bankName      String @map("bank_name")
+  currency      String @default("ALL")
+
+  // Balance
+  currentBalance Decimal @default(0) @map("current_balance") @db.Decimal(12, 2)
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  transactions    BankTransaction[]
+  reconciliations BankReconciliation[]
+
+  @@index([tenantId])
+  @@map("bank_accounts")
+}
+
+model BankTransaction {
+  id            String @id @default(uuid())
+  bankAccountId String @map("bank_account_id")
+
+  transactionDate DateTime @map("transaction_date")
+  description     String
+  amount          Decimal  @db.Decimal(12, 2)
+  type            String // debit, credit
+  balance         Decimal? @db.Decimal(12, 2)
+
+  // Matching
+  isMatched   Boolean @default(false) @map("is_matched")
+  matchedType String? @map("matched_type") // expense, bill, sale, transfer
+  matchedId   String? @map("matched_id")
+
+  // Import metadata
+  importBatchId   String? @map("import_batch_id")
+  referenceNumber String? @map("reference_number")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@index([bankAccountId])
+  @@index([transactionDate])
+  @@index([isMatched])
+  @@map("bank_transactions")
+}
+
+model BankReconciliation {
+  id            String @id @default(uuid())
+  bankAccountId String @map("bank_account_id")
+  tenantId      String @map("tenant_id")
+
+  reconciliationNumber String   @unique @map("reconciliation_number")
+  periodStart          DateTime @map("period_start")
+  periodEnd            DateTime @map("period_end")
+
+  openingBalance Decimal @map("opening_balance") @db.Decimal(12, 2)
+  closingBalance Decimal @map("closing_balance") @db.Decimal(12, 2)
+
+  statementBalance Decimal @map("statement_balance") @db.Decimal(12, 2)
+  difference       Decimal @default(0) @db.Decimal(12, 2)
+
+  status String @default("pending") // pending, completed
+
+  reconciledBy String?   @map("reconciled_by")
+  reconciledAt DateTime? @map("reconciled_at")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+
+  @@index([bankAccountId])
+  @@index([tenantId])
+  @@index([periodStart])
+  @@map("bank_reconciliations")
+}
+
+// 5. HR MANAGEMENT
+model OnboardingChecklist {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  employeeId String @map("employee_id")
+
+  taskName    String    @map("task_name")
+  description String?
+  dueDate     DateTime? @map("due_date")
+
+  isCompleted Boolean   @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+  completedBy String?   @map("completed_by")
+
+  sortOrder Int @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("onboarding_checklists")
+}
+
+model TrainingModule {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  title       String
+  description String?
+  duration    Int?    @map("duration") // in minutes
+
+  // Content
+  materials Json? @db.JsonB // URLs, documents, videos
+
+  // Certification
+  requiresCertification Boolean @default(false) @map("requires_certification")
+  passingScore          Int?    @default(70) @map("passing_score")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  enrollments TrainingEnrollment[]
+
+  @@index([tenantId])
+  @@map("training_modules")
+}
+
+model TrainingEnrollment {
+  id               String @id @default(uuid())
+  trainingModuleId String @map("training_module_id")
+  employeeId       String @map("employee_id")
+
+  enrolledDate  DateTime  @default(now()) @map("enrolled_date")
+  startedDate   DateTime? @map("started_date")
+  completedDate DateTime? @map("completed_date")
+
+  status String @default("enrolled") // enrolled, in_progress, completed, failed
+
+  // Assessment
+  score          Int?    @map("score")
+  certified      Boolean @default(false)
+  certificateUrl String? @map("certificate_url")
+
+  notes String?
+
+  // Relations
+  trainingModule TrainingModule @relation(fields: [trainingModuleId], references: [id], onDelete: Cascade)
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingModuleId, employeeId])
+  @@index([employeeId])
+  @@map("training_enrollments")
+}
+
+model PerformanceReview {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  employeeId String @map("employee_id")
+
+  reviewPeriodStart DateTime @map("review_period_start")
+  reviewPeriodEnd   DateTime @map("review_period_end")
+
+  reviewerName  String  @map("reviewer_name")
+  reviewerTitle String? @map("reviewer_title")
+
+  // Ratings (1-5 scale)
+  performanceRating   Int? @map("performance_rating")
+  qualityRating       Int? @map("quality_rating")
+  communicationRating Int? @map("communication_rating")
+  teamworkRating      Int? @map("teamwork_rating")
+
+  overallRating Decimal? @map("overall_rating") @db.Decimal(3, 2)
+
+  // Feedback
+  strengths           String?
+  areasForImprovement String? @map("areas_for_improvement")
+  goals               String?
+  comments            String?
+
+  // Employee Response
+  employeeComments       String?   @map("employee_comments")
+  employeeAcknowledgedAt DateTime? @map("employee_acknowledged_at")
+
+  status String @default("draft") // draft, submitted, acknowledged
+
+  submittedAt DateTime? @map("submitted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("performance_reviews")
+}
+
+model TimeOffRequest {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  employeeId String @map("employee_id")
+
+  requestNumber String   @unique @map("request_number")
+  type          String // vacation, sick_leave, personal, unpaid
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  totalDays     Decimal  @map("total_days") @db.Decimal(5, 2)
+
+  reason String?
+
+  status          String    @default("pending") // pending, approved, rejected
+  approvedBy      String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  rejectedBy      String?   @map("rejected_by")
+  rejectedAt      DateTime? @map("rejected_at")
+  rejectionReason String?   @map("rejection_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([status])
+  @@map("time_off_requests")
+}
+
+model EmployeeDocument {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  employeeId String @map("employee_id")
+
+  documentType String  @map("document_type") // contract, id_card, certificate, etc.
+  documentName String  @map("document_name")
+  fileUrl      String  @map("file_url")
+  fileSize     Int?    @map("file_size")
+  mimeType     String? @map("mime_type")
+
+  // Expiry tracking
+  expiresAt DateTime? @map("expires_at")
+
+  uploadedBy String @map("uploaded_by")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([expiresAt])
+  @@map("employee_documents")
+}
+
+// ============================================
+// Generated: 2026-02-23 by Backend Team
+// Version: 0.3.0 (Financial & HR Features)
+// ============================================
+// ============================================
+// MARKETING & CAMPAIGNS MODELS
+// Created: 2026-02-23 by Boli (Backend) & Mela (Frontend)
+// ============================================
+
+// ============================================
+// CUSTOMER SEGMENTS
+// ============================================
+
+model CustomerSegment {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String
+  description String?
+
+  criteria      Json    @default("{}")
+  customerCount Int     @default(0) @map("customer_count")
+  isActive      Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  emailCampaigns EmailCampaign[]
+  smsCampaigns   SmsCampaign[]
+
+  @@index([tenantId])
+  @@map("customer_segments")
+}
+
+// ============================================
+// EMAIL CAMPAIGNS
+// ============================================
+
+model EmailCampaign {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name      String
+  subject   String
+  fromName  String  @map("from_name")
+  fromEmail String  @map("from_email")
+  replyTo   String? @map("reply_to")
+
+  htmlContent String? @map("html_content") @db.Text
+  textContent String? @map("text_content") @db.Text
+
+  // Targeting
+  segmentId String? @map("segment_id")
+
+  // Status
+  status String @default("draft") // draft, scheduled, sending, sent, cancelled
+
+  // Scheduling
+  scheduledFor DateTime? @map("scheduled_for")
+  sentAt       DateTime? @map("sent_at")
+
+  // Stats
+  totalRecipients Int @default(0) @map("total_recipients")
+  sent            Int @default(0)
+  delivered       Int @default(0)
+  opened          Int @default(0)
+  clicked         Int @default(0)
+  bounced         Int @default(0)
+  unsubscribed    Int @default(0)
+  failed          Int @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant     Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  segment    CustomerSegment?         @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  recipients EmailCampaignRecipient[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@map("email_campaigns")
+}
+
+model EmailCampaignRecipient {
+  id         String @id @default(uuid())
+  campaignId String @map("campaign_id")
+  customerId String @map("customer_id")
+
+  email String
+
+  // Status tracking
+  status    String  @default("pending") // pending, sent, delivered, opened, clicked, bounced, failed
+  messageId String? @map("message_id")
+
+  // Engagement
+  openedAt     DateTime? @map("opened_at")
+  clickedAt    DateTime? @map("clicked_at")
+  bouncedAt    DateTime? @map("bounced_at")
+  errorMessage String?   @map("error_message") @db.Text
+
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  campaign EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([customerId])
+  @@index([status])
+  @@map("email_campaign_recipients")
+}
+
+model EmailTemplate {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name            String
+  description     String?
+  subjectTemplate String? @map("subject_template")
+  htmlTemplate    String? @map("html_template") @db.Text
+  textTemplate    String? @map("text_template") @db.Text
+
+  // Variables (JSON array)
+  variables Json @default("[]")
+
+  category String? // welcome, receipt, marketing, transactional
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("email_templates")
+}
+
+// ============================================
+// SMS CAMPAIGNS
+// ============================================
+
+model SmsCampaign {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name    String
+  message String @db.Text
+
+  // Targeting
+  segmentId String? @map("segment_id")
+
+  // Status
+  status String @default("draft") // draft, scheduled, sending, sent, cancelled
+
+  // Scheduling
+  scheduledFor DateTime? @map("scheduled_for")
+  sentAt       DateTime? @map("sent_at")
+
+  // Stats
+  totalRecipients Int @default(0) @map("total_recipients")
+  sent            Int @default(0)
+  delivered       Int @default(0)
+  failed          Int @default(0)
+  optedOut        Int @default(0) @map("opted_out")
+
+  // Cost tracking
+  costPerSms Decimal? @map("cost_per_sms") @db.Decimal(10, 4)
+  totalCost  Decimal? @map("total_cost") @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant     Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  segment    CustomerSegment?       @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  recipients SmsCampaignRecipient[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@map("sms_campaigns")
+}
+
+model SmsCampaignRecipient {
+  id         String @id @default(uuid())
+  campaignId String @map("campaign_id")
+  customerId String @map("customer_id")
+
+  phone String
+
+  // Status tracking
+  status     String  @default("pending") // pending, sent, delivered, failed, opted_out
+  messageSid String? @map("message_sid")
+
+  errorMessage String?   @map("error_message") @db.Text
+  deliveredAt  DateTime? @map("delivered_at")
+  sentAt       DateTime? @map("sent_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  campaign SmsCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([customerId])
+  @@map("sms_campaign_recipients")
+}
+
+// ============================================
+// CUSTOMER SURVEYS
+// ============================================
+
+model Survey {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  title       String
+  description String? @db.Text
+
+  // Distribution
+  distributionMethod String? @map("distribution_method") // email, sms, in_app, link
+
+  // Status
+  status String @default("draft") // draft, active, closed
+
+  // Dates
+  startsAt DateTime? @map("starts_at")
+  endsAt   DateTime? @map("ends_at")
+
+  // Stats
+  totalSent      Int @default(0) @map("total_sent")
+  totalResponses Int @default(0) @map("total_responses")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  questions SurveyQuestion[]
+  responses SurveyResponse[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("surveys")
+}
+
+model SurveyQuestion {
+  id       String @id @default(uuid())
+  surveyId String @map("survey_id")
+
+  question     String @db.Text
+  questionType String @map("question_type") // text, multiple_choice, rating, yes_no, nps
+
+  // Options for multiple choice (JSON array)
+  options Json @default("[]")
+
+  required  Boolean @default(false)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  survey  Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  answers SurveyAnswer[]
+
+  @@index([surveyId])
+  @@map("survey_questions")
+}
+
+model SurveyResponse {
+  id         String  @id @default(uuid())
+  surveyId   String  @map("survey_id")
+  customerId String? @map("customer_id")
+
+  isAnonymous Boolean @default(false) @map("is_anonymous")
+
+  // Metadata
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent") @db.Text
+
+  completedAt DateTime @default(now()) @map("completed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  survey   Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  customer Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  answers  SurveyAnswer[]
+
+  @@index([surveyId])
+  @@index([customerId])
+  @@map("survey_responses")
+}
+
+model SurveyAnswer {
+  id         String @id @default(uuid())
+  responseId String @map("response_id")
+  questionId String @map("question_id")
+
+  answer String @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  response SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([responseId])
+  @@index([questionId])
+  @@map("survey_answers")
+}
+
+// ============================================
+// REFERRAL PROGRAM
+// ============================================
+
+model ReferralProgram {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String
+  description String? @db.Text
+
+  // Rewards
+  referrerRewardType   String  @map("referrer_reward_type") // points, discount, cash
+  referrerRewardAmount Decimal @map("referrer_reward_amount") @db.Decimal(10, 2)
+
+  refereeRewardType   String  @map("referee_reward_type")
+  refereeRewardAmount Decimal @map("referee_reward_amount") @db.Decimal(10, 2)
+
+  // Conditions
+  minPurchaseAmount Decimal @default(0) @map("min_purchase_amount") @db.Decimal(10, 2)
+
+  // Status
+  isActive Boolean   @default(true) @map("is_active")
+  startsAt DateTime? @map("starts_at")
+  endsAt   DateTime? @map("ends_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referrals Referral[]
+
+  @@index([tenantId])
+  @@map("referral_programs")
+}
+
+model Referral {
+  id        String @id @default(uuid())
+  programId String @map("program_id")
+
+  // Referrer (customer making the referral)
+  referrerCustomerId String @map("referrer_customer_id")
+
+  // Referee (new customer)
+  refereeCustomerId String? @map("referee_customer_id")
+
+  referralCode String @unique @map("referral_code")
+
+  // Tracking
+  clicks Int    @default(0)
+  status String @default("pending") // pending, completed, expired
+
+  // Completion
+  completedAt    DateTime? @map("completed_at")
+  purchaseAmount Decimal?  @map("purchase_amount") @db.Decimal(10, 2)
+
+  // Rewards
+  referrerRewardGiven Boolean @default(false) @map("referrer_reward_given")
+  refereeRewardGiven  Boolean @default(false) @map("referee_reward_given")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime? @map("expires_at")
+
+  // Relations
+  program          ReferralProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  referrerCustomer Customer        @relation("CustomerReferrals", fields: [referrerCustomerId], references: [id], onDelete: Cascade)
+  refereeCustomer  Customer?       @relation("CustomerReferees", fields: [refereeCustomerId], references: [id], onDelete: SetNull)
+
+  @@index([programId])
+  @@index([referrerCustomerId])
+  @@index([referralCode])
+  @@map("referrals")
+}
+
+// ============================================
+// SOCIAL MEDIA
+// ============================================
+
+model SocialPost {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  platform String // facebook, instagram, twitter
+  content  String @db.Text
+
+  // Media (JSON array of URLs)
+  mediaUrls Json @default("[]") @map("media_urls")
+
+  // Status
+  status String @default("draft") // draft, scheduled, published, failed
+
+  // Scheduling
+  scheduledFor DateTime? @map("scheduled_for")
+  publishedAt  DateTime? @map("published_at")
+
+  // External IDs
+  platformPostId String? @map("platform_post_id")
+
+  // Stats
+  likes          Int     @default(0)
+  shares         Int     @default(0)
+  comments       Int     @default(0)
+  impressions    Int     @default(0)
+  engagementRate Decimal @default(0) @map("engagement_rate") @db.Decimal(5, 2)
+
+  errorMessage String? @map("error_message") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([platform])
+  @@index([status])
+  @@index([scheduledFor])
+  @@map("social_posts")
+}
+
+model SocialReview {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  platform String // google, facebook, yelp
+
+  reviewerName       String? @map("reviewer_name")
+  reviewerProfileUrl String? @map("reviewer_profile_url")
+
+  rating     Int     @map("rating") // 1-5
+  reviewText String? @map("review_text") @db.Text
+
+  // Response
+  responded    Boolean   @default(false)
+  responseText String?   @map("response_text") @db.Text
+  respondedAt  DateTime? @map("responded_at")
+
+  // Metadata
+  reviewDate       DateTime? @map("review_date")
+  platformReviewId String?   @map("platform_review_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([platform])
+  @@index([rating])
+  @@index([responded])
+  @@map("social_reviews")
+}
+
+model SocialAccount {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  platform      String // facebook, instagram, twitter
+  accountName   String? @map("account_name")
+  accountHandle String? @map("account_handle")
+
+  // OAuth tokens (encrypted)
+  accessTokenEncrypted  String?   @map("access_token_encrypted") @db.Text
+  refreshTokenEncrypted String?   @map("refresh_token_encrypted") @db.Text
+  tokenExpiresAt        DateTime? @map("token_expires_at")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, platform])
+  @@index([tenantId])
+  @@map("social_accounts")
+}
+
+// ============================================
+// MARKETING AUTOMATION
+// ============================================
+
+model AutomationWorkflow {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String
+  description String? @db.Text
+
+  // Trigger
+  triggerType       String @map("trigger_type") // customer_signup, purchase, abandoned_cart, birthday
+  triggerConditions Json   @default("{}") @map("trigger_conditions")
+
+  // Actions (JSON array)
+  actions Json @default("[]")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  // Stats
+  triggeredCount Int @default(0) @map("triggered_count")
+  completedCount Int @default(0) @map("completed_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  executions AutomationExecution[]
+
+  @@index([tenantId])
+  @@index([triggerType])
+  @@map("automation_workflows")
+}
+
+model AutomationExecution {
+  id         String  @id @default(uuid())
+  workflowId String  @map("workflow_id")
+  customerId String? @map("customer_id")
+
+  status String @default("running") // running, completed, failed
+
+  triggerData  Json?   @map("trigger_data")
+  errorMessage String? @map("error_message") @db.Text
+
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Relations
+  workflow AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  customer Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([workflowId])
+  @@map("automation_executions")
+}
+
+// ============================================
+// Update Customer model to add marketing relations
+// ============================================
+
+// Add these to the existing Customer model:
+// emailCampaignRecipients EmailCampaignRecipient[]
+// smsCampaignRecipients   SmsCampaignRecipient[]
+// surveyResponses         SurveyResponse[]
+// referralsMade           Referral[] @relation("CustomerReferrals")
+// referralsReceived       Referral[] @relation("CustomerReferees")
+// automationExecutions    AutomationExecution[]
+
+// ============================================
+// Update Tenant model to add marketing relations
+// ============================================
+
+// Add these to the existing Tenant model:
+// customerSegments      CustomerSegment[]
+// emailCampaigns        EmailCampaign[]
+// emailTemplates        EmailTemplate[]
+// smsCampaigns          SmsCampaign[]
+// surveys               Survey[]
+// referralPrograms      ReferralProgram[]
+// socialPosts           SocialPost[]
+// socialReviews         SocialReview[]
+// socialAccounts        SocialAccount[]
+// automationWorkflows   AutomationWorkflow[]
+// ============================================
+// E-COMMERCE FEATURES SCHEMA
+// All 45 features for Team 2
+// ============================================
+
+// ============================================
+// 1. PRODUCT REVIEWS & RATINGS (8 features)
+// ============================================
+
+model ProductReview {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  productId  String  @map("product_id")
+  customerId String  @map("customer_id")
+  orderId    String? @map("order_id")
+
+  // Review content
+  rating  Int // 1-5 stars
+  title   String?
+  comment String? @db.Text
+
+  // Verified purchase badge
+  isVerifiedPurchase Boolean @default(false) @map("is_verified_purchase")
+
+  // Moderation
+  status      String    @default("pending") // pending, approved, rejected
+  moderatedBy String?   @map("moderated_by")
+  moderatedAt DateTime? @map("moderated_at")
+
+  // Helpful votes
+  helpfulCount    Int @default(0) @map("helpful_count")
+  notHelpfulCount Int @default(0) @map("not_helpful_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  media    ReviewMedia[]
+  votes    ReviewVote[]
+  response ReviewResponse?
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([customerId])
+  @@index([status])
+  @@index([rating])
+  @@map("product_reviews")
+}
+
+model ReviewMedia {
+  id       String @id @default(uuid())
+  reviewId String @map("review_id")
+
+  type     String // photo, video
+  url      String
+  mimeType String? @map("mime_type")
+  fileSize Int?    @map("file_size")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  review ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@map("review_media")
+}
+
+model ReviewVote {
+  id         String @id @default(uuid())
+  reviewId   String @map("review_id")
+  customerId String @map("customer_id")
+
+  isHelpful Boolean @map("is_helpful")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  review   ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, customerId])
+  @@index([reviewId])
+  @@map("review_votes")
+}
+
+model ReviewResponse {
+  id       String @id @default(uuid())
+  reviewId String @unique @map("review_id")
+  userId   String @map("user_id")
+
+  response String @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  review ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@map("review_responses")
+}
+
+// ============================================
+// 2. WISHLISTS & SAVED CARTS (6 features)
+// ============================================
+
+model Wishlist {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  customerId String @map("customer_id")
+
+  name        String
+  description String? @db.Text
+  isDefault   Boolean @default(false) @map("is_default")
+  isPublic    Boolean @default(false) @map("is_public")
+  shareToken  String? @unique @map("share_token")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items    WishlistItem[]
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([shareToken])
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id         String @id @default(uuid())
+  wishlistId String @map("wishlist_id")
+  productId  String @map("product_id")
+
+  notes    String? @db.Text
+  priority Int     @default(0) // 0=low, 1=medium, 2=high
+  quantity Int     @default(1)
+
+  // Price tracking
+  originalPrice  Decimal? @map("original_price") @db.Decimal(10, 2)
+  currentPrice   Decimal? @map("current_price") @db.Decimal(10, 2)
+  priceDropAlert Boolean  @default(false) @map("price_drop_alert")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([wishlistId, productId])
+  @@index([wishlistId])
+  @@index([productId])
+  @@map("wishlist_items")
+}
+
+model SavedCart {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  customerId String? @map("customer_id")
+  sessionId  String? @map("session_id")
+
+  name     String?
+  cartData Json    @map("cart_data") // Stores full cart state
+
+  // Recovery
+  isAbandoned       Boolean   @default(false) @map("is_abandoned")
+  abandonedAt       DateTime? @map("abandoned_at")
+  recoveryEmailSent Boolean   @default(false) @map("recovery_email_sent")
+  recoveryToken     String?   @unique @map("recovery_token")
+
+  expiresAt DateTime? @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer              Customer?              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  AbandonedCartRecovery AbandonedCartRecovery?
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([sessionId])
+  @@index([recoveryToken])
+  @@index([isAbandoned])
+  @@map("saved_carts")
+}
+
+// ============================================
+// 3. LIVE CHAT SUPPORT (7 features)
+// ============================================
+
+model ChatConversation {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  customerId String? @map("customer_id")
+  assignedTo String? @map("assigned_to")
+
+  // Visitor info
+  visitorName  String? @map("visitor_name")
+  visitorEmail String? @map("visitor_email")
+  visitorIp    String? @map("visitor_ip")
+  userAgent    String? @map("user_agent")
+
+  // Status
+  status   String @default("open") // open, active, resolved, closed
+  priority String @default("normal") // low, normal, high, urgent
+
+  // Metadata
+  tags        String[] @default([])
+  referrerUrl String?  @map("referrer_url") @db.Text
+  currentUrl  String?  @map("current_url") @db.Text
+
+  startedAt  DateTime  @default(now()) @map("started_at")
+  resolvedAt DateTime? @map("resolved_at")
+  closedAt   DateTime? @map("closed_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  agent    User?         @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  messages ChatMessage[]
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([assignedTo])
+  @@index([status])
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id             String  @id @default(uuid())
+  conversationId String  @map("conversation_id")
+  senderId       String? @map("sender_id")
+
+  // Message content
+  message     String @db.Text
+  messageType String @default("text") @map("message_type") // text, file, image, system
+
+  // File attachments
+  fileUrl      String? @map("file_url")
+  fileName     String? @map("file_name")
+  fileSize     Int?    @map("file_size")
+  fileMimeType String? @map("file_mime_type")
+
+  // Metadata
+  isFromAgent Boolean   @default(false) @map("is_from_agent")
+  isRead      Boolean   @default(false) @map("is_read")
+  readAt      DateTime? @map("read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("chat_messages")
+}
+
+model ChatCannedResponse {
+  id       String  @id @default(uuid())
+  tenantId String  @map("tenant_id")
+  userId   String? @map("user_id")
+
+  title    String
+  message  String  @db.Text
+  shortcut String? // Quick access code like /hello
+  category String?
+
+  isShared   Boolean @default(false) @map("is_shared")
+  usageCount Int     @default(0) @map("usage_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([shortcut])
+  @@map("chat_canned_responses")
+}
+
+// ============================================
+// 4. ABANDONED CART RECOVERY (6 features)
+// ============================================
+
+model AbandonedCartRecovery {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  cartId   String @unique @map("cart_id")
+
+  customerId    String? @map("customer_id")
+  customerEmail String? @map("customer_email")
+  cartValue     Decimal @map("cart_value") @db.Decimal(10, 2)
+  itemCount     Int     @map("item_count")
+
+  // Recovery sequences
+  sequenceStep  Int       @default(0) @map("sequence_step")
+  emailsSent    Int       @default(0) @map("emails_sent")
+  smsSent       Int       @default(0) @map("sms_sent")
+  lastContactAt DateTime? @map("last_contact_at")
+
+  // Discount incentive
+  discountCode   String?  @map("discount_code")
+  discountAmount Decimal? @map("discount_amount") @db.Decimal(10, 2)
+  discountType   String?  @map("discount_type") // percentage, fixed
+
+  // Status
+  status      String    @default("active") // active, recovered, expired, ignored
+  recoveredAt DateTime? @map("recovered_at")
+  expiredAt   DateTime? @map("expired_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cart     SavedCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([cartId])
+  @@index([customerId])
+  @@index([status])
+  @@map("abandoned_cart_recoveries")
+}
+
+// ============================================
+// 5. PRODUCT RECOMMENDATIONS (8 features)
+// ============================================
+
+model ProductRecommendation {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  productId  String  @map("product_id")
+  customerId String? @map("customer_id")
+
+  // Recommendation type
+  type String @map("type") // ai-based, also-bought, frequently-together, trending, cross-sell, upsell
+
+  // Related products (for also-bought, frequently-together)
+  relatedProducts String[] @default([]) @map("related_products")
+
+  // AI scoring
+  score  Float?  @default(0)
+  reason String? @db.Text
+
+  // Personalization
+  isPersonalized Boolean @default(false) @map("is_personalized")
+
+  // Performance tracking
+  impressions Int @default(0)
+  clicks      Int @default(0)
+  conversions Int @default(0)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  expiresAt DateTime? @map("expires_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([customerId])
+  @@index([type])
+  @@map("product_recommendations")
+}
+
+model ProductView {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  productId  String  @map("product_id")
+  customerId String? @map("customer_id")
+  sessionId  String? @map("session_id")
+
+  viewDuration Int?    @map("view_duration") // seconds
+  referrer     String? @db.Text
+  deviceType   String? @map("device_type") // mobile, tablet, desktop
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([customerId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("product_views")
+}
+
+// ============================================
+// 6. SEO OPTIMIZATION (10 features)
+// ============================================
+
+model SeoMetadata {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Target
+  entityType String @map("entity_type") // product, category, page
+  entityId   String @map("entity_id")
+
+  // Meta tags
+  metaTitle       String? @map("meta_title")
+  metaDescription String? @map("meta_description") @db.Text
+  metaKeywords    String? @map("meta_keywords") @db.Text
+
+  // Open Graph
+  ogTitle       String? @map("og_title")
+  ogDescription String? @map("og_description") @db.Text
+  ogImage       String? @map("og_image")
+  ogType        String? @default("website") @map("og_type")
+
+  // Twitter Card
+  twitterCard        String? @default("summary_large_image") @map("twitter_card")
+  twitterTitle       String? @map("twitter_title")
+  twitterDescription String? @map("twitter_description") @db.Text
+  twitterImage       String? @map("twitter_image")
+
+  // URL & Canonical
+  customUrl    String? @unique @map("custom_url")
+  canonicalUrl String? @map("canonical_url")
+
+  // Schema.org markup
+  schemaMarkup Json? @map("schema_markup")
+
+  // Indexing
+  noIndex  Boolean @default(false) @map("no_index")
+  noFollow Boolean @default(false) @map("no_follow")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, entityType, entityId])
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([customUrl])
+  @@map("seo_metadata")
+}
+
+model SeoRedirect {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  fromUrl    String  @map("from_url")
+  toUrl      String  @map("to_url")
+  statusCode Int     @default(301) @map("status_code") // 301, 302, 307, 308
+  isActive   Boolean @default(true) @map("is_active")
+
+  // Analytics
+  hitCount  Int       @default(0) @map("hit_count")
+  lastHitAt DateTime? @map("last_hit_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, fromUrl])
+  @@index([tenantId])
+  @@index([fromUrl])
+  @@map("seo_redirects")
+}
+
+model SeoImageOptimization {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  originalUrl  String  @map("original_url")
+  optimizedUrl String  @map("optimized_url")
+  altText      String? @map("alt_text")
+  title        String?
+
+  originalSize     Int   @map("original_size") // bytes
+  optimizedSize    Int   @map("optimized_size") // bytes
+  compressionRatio Float @map("compression_ratio")
+
+  width  Int?
+  height Int?
+  format String? // webp, jpg, png
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([originalUrl])
+  @@map("seo_image_optimizations")
+}
+
+// ============================================
+// UPDATE EXISTING MODELS WITH NEW RELATIONS
+// ============================================
+
+// Add to Product model:
+// reviews               ProductReview[]
+// wishlistItems         WishlistItem[]
+// recommendations       ProductRecommendation[]
+// views                 ProductView[]
+
+// Add to Customer model:
+// reviews               ProductReview[]
+// reviewVotes           ReviewVote[]
+// wishlists             Wishlist[]
+// savedCarts            SavedCart[]
+// chatConversations     ChatConversation[]
+// abandonedCarts        AbandonedCartRecovery[]
+// recommendations       ProductRecommendation[]
+// productViews          ProductView[]
+
+// Add to User model:
+// reviewResponses       ReviewResponse[]
+// chatMessages          ChatMessage[]
+// chatAssignments       ChatConversation[]
+// cannedResponses       ChatCannedResponse[]
+
+// Add to Tenant model:
+// productReviews        ProductReview[]
+// wishlists             Wishlist[]
+// savedCarts            SavedCart[]
+// chatConversations     ChatConversation[]
+// cannedResponses       ChatCannedResponse[]
+// abandonedCartRecoveries AbandonedCartRecovery[]
+// productRecommendations ProductRecommendation[]
+// productViews          ProductView[]
+// seoMetadata           SeoMetadata[]
+// seoRedirects          SeoRedirect[]
+// seoImageOptimizations SeoImageOptimization[]
+// ============================================
+// MANUFACTURING MODELS - TEAM 4
+// Built by: Eroldi (CTO), Boli, Artan
+// Date: 2026-02-23
+// ============================================
+
+// ============================================
+// 1. BILL OF MATERIALS (BOM) - 10 Features
+// ============================================
+
+model BOM {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // BOM Details
+  productId   String  @map("product_id")
+  version     Int     @default(1)
+  name        String
+  description String?
+
+  // BOM Type
+  bomType String @default("production") @map("bom_type") // production, assembly, disassembly
+
+  // Status & Approval
+  status     String    @default("draft") // draft, pending_approval, approved, archived
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  // Costing
+  totalCost Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+
+  // Active version tracking
+  isActive Boolean @default(false) @map("is_active")
+
+  // Metadata
+  notes     String?
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items      BOMItem[]
+  versions   BOMVersion[]
+  workOrders WorkOrder[]
+
+  @@unique([productId, version])
+  @@index([tenantId, status])
+  @@index([productId])
+  @@map("bom")
+}
+
+model BOMItem {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  bomId    String @map("bom_id")
+
+  // Component Details
+  componentId String  @map("component_id")
+  quantity    Decimal @db.Decimal(15, 4)
+  unit        String  @default("pieces")
+
+  // Positioning (for nested BOMs)
+  parentItemId String? @map("parent_item_id")
+  level        Int     @default(0) // 0 = top level, 1+ = nested
+  sequence     Int     @default(0) // Order in the BOM
+
+  // Substitutions
+  isOptional Boolean @default(false) @map("is_optional")
+
+  // Costing
+  unitCost  Decimal @default(0) @map("unit_cost") @db.Decimal(15, 2)
+  totalCost Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bom           BOM               @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  component     Product           @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  parentItem    BOMItem?          @relation("BOMItemHierarchy", fields: [parentItemId], references: [id])
+  childItems    BOMItem[]         @relation("BOMItemHierarchy")
+  substitutes   BOMSubstitution[] @relation("PrimaryComponent")
+  substitutedBy BOMSubstitution[] @relation("SubstituteComponent")
+
+  @@index([bomId])
+  @@index([componentId])
+  @@index([tenantId])
+  @@map("bom_items")
+}
+
+model BOMSubstitution {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  primaryComponentId    String @map("primary_component_id")
+  substituteComponentId String @map("substitute_component_id")
+
+  // Substitution Details
+  conversionRatio Decimal @default(1) @map("conversion_ratio") @db.Decimal(15, 4)
+  priority        Int     @default(1) // Lower = higher priority
+
+  // Conditions
+  isActive Boolean @default(true) @map("is_active")
+  notes    String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant              Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  primaryComponent    BOMItem @relation("PrimaryComponent", fields: [primaryComponentId], references: [id], onDelete: Cascade)
+  substituteComponent BOMItem @relation("SubstituteComponent", fields: [substituteComponentId], references: [id], onDelete: Cascade)
+
+  @@unique([primaryComponentId, substituteComponentId])
+  @@index([tenantId])
+  @@map("bom_substitutions")
+}
+
+model BOMVersion {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  bomId    String @map("bom_id")
+
+  // Version Details
+  version   Int
+  changeLog String   @map("change_log")
+  changedBy String   @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  // Snapshot (JSON)
+  snapshot Json // Full BOM snapshot at this version
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bom    BOM    @relation(fields: [bomId], references: [id], onDelete: Cascade)
+
+  @@index([bomId, version])
+  @@index([tenantId])
+  @@map("bom_versions")
+}
+
+// ============================================
+// 2. PRODUCTION PLANNING - 10 Features
+// ============================================
+
+model ProductionSchedule {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Schedule Details
+  name        String
+  description String?
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+
+  // Planning
+  productId         String  @map("product_id")
+  plannedQuantity   Decimal @map("planned_quantity") @db.Decimal(15, 4)
+  completedQuantity Decimal @default(0) @map("completed_quantity") @db.Decimal(15, 4)
+
+  // Status
+  status   String @default("planned") // planned, in_progress, completed, cancelled
+  priority String @default("medium") // low, medium, high, urgent
+
+  // Capacity Planning
+  machineId String? @map("machine_id")
+  shiftId   String? @map("shift_id")
+
+  // Lead Time
+  leadTimeDays Int @default(0) @map("lead_time_days")
+
+  // Metadata
+  notes     String?
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product             Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  machine             ProductionMachine?   @relation(fields: [machineId], references: [id])
+  shift               ProductionShift?     @relation(fields: [shiftId], references: [id])
+  workOrders          WorkOrder[]
+  resourceAllocations ResourceAllocation[]
+
+  @@index([tenantId, status])
+  @@index([productId])
+  @@index([startDate, endDate])
+  @@map("production_schedules")
+}
+
+model ProductionCalendar {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Calendar Details
+  name        String
+  description String?
+
+  // Date
+  date         DateTime
+  isWorkingDay Boolean  @default(true) @map("is_working_day")
+
+  // Working Hours
+  startTime String? @map("start_time") // HH:mm format
+  endTime   String? @map("end_time") // HH:mm format
+
+  // Type
+  dayType String @default("regular") // regular, holiday, maintenance, overtime
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
+  @@map("production_calendars")
+}
+
+model ProductionShift {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Shift Details
+  name        String
+  description String?
+
+  // Timing
+  startTime String @map("start_time") // HH:mm format
+  endTime   String @map("end_time") // HH:mm format
+
+  // Days (JSON array of day numbers: 0=Sunday, 6=Saturday)
+  workingDays Json @default("[1,2,3,4,5]") @map("working_days")
+
+  // Capacity
+  capacityPercentage Decimal @default(100) @map("capacity_percentage") @db.Decimal(5, 2)
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  schedules  ProductionSchedule[]
+  workOrders WorkOrder[]
+
+  @@index([tenantId])
+  @@map("production_shifts")
+}
+
+model ProductionMachine {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Machine Details
+  name        String
+  code        String  @unique
+  description String?
+  machineType String  @map("machine_type")
+
+  // Capacity
+  hoursPerDay    Decimal @default(8) @map("hours_per_day") @db.Decimal(5, 2)
+  efficiencyRate Decimal @default(100) @map("efficiency_rate") @db.Decimal(5, 2)
+
+  // Status
+  status String @default("available") // available, in_use, maintenance, down
+
+  // Costs
+  hourlyCost Decimal @default(0) @map("hourly_cost") @db.Decimal(15, 2)
+
+  // Metadata
+  locationId String?  @map("location_id")
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  schedules        ProductionSchedule[]
+  workOrders       WorkOrder[]
+  machineSchedules MachineSchedule[]
+
+  @@index([tenantId, status])
+  @@map("production_machines")
+}
+
+model MachineSchedule {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  machineId   String  @map("machine_id")
+  workOrderId String? @map("work_order_id")
+
+  // Schedule
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+
+  // Status
+  status String @default("scheduled") // scheduled, in_progress, completed, cancelled
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  machine   ProductionMachine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder?        @relation(fields: [workOrderId], references: [id])
+
+  @@index([machineId, startTime, endTime])
+  @@index([tenantId])
+  @@map("machine_schedules")
+}
+
+model ResourceAllocation {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  scheduleId String @map("schedule_id")
+
+  // Resource Details
+  resourceType String @map("resource_type") // labor, machine, material
+  resourceId   String @map("resource_id")
+  resourceName String @map("resource_name")
+
+  // Allocation
+  allocatedQuantity Decimal @map("allocated_quantity") @db.Decimal(15, 4)
+  unit              String  @default("hours")
+
+  // Cost
+  unitCost  Decimal @default(0) @map("unit_cost") @db.Decimal(15, 2)
+  totalCost Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  schedule ProductionSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@index([tenantId, resourceType])
+  @@map("resource_allocations")
+}
+
+model MaterialRequirement {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // MRP Details
+  productId         String  @map("product_id")
+  requiredQuantity  Decimal @map("required_quantity") @db.Decimal(15, 4)
+  availableQuantity Decimal @default(0) @map("available_quantity") @db.Decimal(15, 4)
+  shortageQuantity  Decimal @default(0) @map("shortage_quantity") @db.Decimal(15, 4)
+
+  // Timing
+  requiredByDate DateTime @map("required_by_date")
+
+  // Status
+  status String @default("pending") // pending, ordered, received, fulfilled
+
+  // Source
+  sourceType String @map("source_type") // work_order, production_schedule, forecast
+  sourceId   String @map("source_id")
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([productId, requiredByDate])
+  @@map("material_requirements")
+}
+
+model ProductionForecast {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Forecast Details
+  productId      String @map("product_id")
+  forecastPeriod String @map("forecast_period") // weekly, monthly, quarterly
+
+  // Period
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  // Quantities
+  forecastedQuantity Decimal @map("forecasted_quantity") @db.Decimal(15, 4)
+  actualQuantity     Decimal @default(0) @map("actual_quantity") @db.Decimal(15, 4)
+  variance           Decimal @default(0) @db.Decimal(15, 4)
+
+  // Method
+  forecastMethod String @default("manual") @map("forecast_method") // manual, historical_average, trend_analysis
+
+  // Metadata
+  notes     String?
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, startDate, endDate])
+  @@index([productId])
+  @@map("production_forecasts")
+}
+
+// ============================================
+// 3. WORK ORDERS - 8 Features
+// ============================================
+
+model WorkOrder {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Work Order Details
+  workOrderNumber String  @unique @map("work_order_number")
+  name            String
+  description     String?
+
+  // Product & BOM
+  productId String  @map("product_id")
+  bomId     String? @map("bom_id")
+
+  // Quantities
+  plannedQuantity   Decimal @map("planned_quantity") @db.Decimal(15, 4)
+  completedQuantity Decimal @default(0) @map("completed_quantity") @db.Decimal(15, 4)
+  scrapQuantity     Decimal @default(0) @map("scrap_quantity") @db.Decimal(15, 4)
+
+  // Scheduling
+  scheduleId String? @map("schedule_id")
+  shiftId    String? @map("shift_id")
+  machineId  String? @map("machine_id")
+
+  // Dates
+  plannedStartDate DateTime  @map("planned_start_date")
+  plannedEndDate   DateTime  @map("planned_end_date")
+  actualStartDate  DateTime? @map("actual_start_date")
+  actualEndDate    DateTime? @map("actual_end_date")
+
+  // Status
+  status   String @default("draft") // draft, released, in_progress, completed, cancelled
+  priority String @default("medium") // low, medium, high, urgent
+
+  // Progress
+  progressPercentage Decimal @default(0) @map("progress_percentage") @db.Decimal(5, 2)
+
+  // Costing
+  estimatedCost Decimal @default(0) @map("estimated_cost") @db.Decimal(15, 2)
+  actualCost    Decimal @default(0) @map("actual_cost") @db.Decimal(15, 2)
+
+  // Metadata
+  notes     String?
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product          Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  bom              BOM?                   @relation(fields: [bomId], references: [id])
+  schedule         ProductionSchedule?    @relation(fields: [scheduleId], references: [id])
+  shift            ProductionShift?       @relation(fields: [shiftId], references: [id])
+  machine          ProductionMachine?     @relation(fields: [machineId], references: [id])
+  operations       WorkOrderOperation[]
+  laborTracking    LaborTracking[]
+  machineTracking  MachineTimeTracking[]
+  scrapRecords     ScrapRecord[]
+  qcCheckpoints    QCCheckpoint[]
+  costRecords      ProductionCostRecord[]
+  machineSchedules MachineSchedule[]
+
+  @@index([tenantId, status])
+  @@index([productId])
+  @@index([workOrderNumber])
+  @@map("work_orders")
+}
+
+model WorkOrderOperation {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  workOrderId String @map("work_order_id")
+
+  // Operation Details
+  operationNumber Int     @map("operation_number")
+  name            String
+  description     String?
+
+  // Routing
+  sequence     Int     @default(0)
+  previousOpId String? @map("previous_operation_id")
+
+  // Machine & Labor
+  machineId     String? @map("machine_id")
+  requiredSkill String? @map("required_skill")
+
+  // Time Estimates
+  setupTimeMinutes Decimal @default(0) @map("setup_time_minutes") @db.Decimal(10, 2)
+  runTimeMinutes   Decimal @default(0) @map("run_time_minutes") @db.Decimal(10, 2)
+
+  // Actual Time
+  actualSetupMinutes Decimal @default(0) @map("actual_setup_minutes") @db.Decimal(10, 2)
+  actualRunMinutes   Decimal @default(0) @map("actual_run_minutes") @db.Decimal(10, 2)
+
+  // Status
+  status String @default("pending") // pending, in_progress, completed, skipped
+
+  // Completion
+  completedBy String?   @map("completed_by")
+  completedAt DateTime? @map("completed_at")
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([workOrderId, operationNumber])
+  @@index([workOrderId, sequence])
+  @@index([tenantId])
+  @@map("work_order_operations")
+}
+
+model LaborTracking {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  workOrderId String @map("work_order_id")
+  employeeId  String @map("employee_id")
+
+  // Time Tracking
+  startTime  DateTime  @map("start_time")
+  endTime    DateTime? @map("end_time")
+  totalHours Decimal   @default(0) @map("total_hours") @db.Decimal(10, 2)
+
+  // Operation
+  operationId String? @map("operation_id")
+
+  // Cost
+  hourlyRate Decimal @default(0) @map("hourly_rate") @db.Decimal(15, 2)
+  totalCost  Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+  @@index([employeeId])
+  @@index([tenantId])
+  @@map("labor_tracking")
+}
+
+model MachineTimeTracking {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  workOrderId String @map("work_order_id")
+  machineId   String @map("machine_id")
+
+  // Time Tracking
+  startTime  DateTime  @map("start_time")
+  endTime    DateTime? @map("end_time")
+  totalHours Decimal   @default(0) @map("total_hours") @db.Decimal(10, 2)
+
+  // Downtime
+  downtimeHours  Decimal @default(0) @map("downtime_hours") @db.Decimal(10, 2)
+  downtimeReason String? @map("downtime_reason")
+
+  // Cost
+  hourlyRate Decimal @default(0) @map("hourly_rate") @db.Decimal(15, 2)
+  totalCost  Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+  @@index([machineId])
+  @@index([tenantId])
+  @@map("machine_time_tracking")
+}
+
+model ScrapRecord {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  workOrderId String @map("work_order_id")
+
+  // Scrap Details
+  quantity Decimal @db.Decimal(15, 4)
+  reason   String
+  category String  @default("production") // production, material, quality, other
+
+  // Cost Impact
+  costPerUnit Decimal @default(0) @map("cost_per_unit") @db.Decimal(15, 2)
+  totalCost   Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+
+  // Responsible
+  reportedBy String   @map("reported_by")
+  reportedAt DateTime @default(now()) @map("reported_at")
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId])
+  @@index([tenantId, reportedAt])
+  @@map("scrap_records")
+}
+
+// ============================================
+// 4. QUALITY CONTROL - 7 Features
+// ============================================
+
+model QCCheckpoint {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  workOrderId String? @map("work_order_id")
+  productId   String? @map("product_id")
+
+  // Checkpoint Details
+  checkpointName String @map("checkpoint_name")
+  checkpointType String @map("checkpoint_type") // incoming, in_process, final, random
+
+  // Inspection
+  inspectionPlanId String? @map("inspection_plan_id")
+
+  // Status
+  status String @default("pending") // pending, in_progress, passed, failed
+
+  // Results
+  result String? // passed, failed, conditional
+
+  // Inspector
+  inspectedBy String?   @map("inspected_by")
+  inspectedAt DateTime? @map("inspected_at")
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder      WorkOrder?      @relation(fields: [workOrderId], references: [id])
+  product        Product?        @relation(fields: [productId], references: [id])
+  inspectionPlan InspectionPlan? @relation(fields: [inspectionPlanId], references: [id])
+  qcReports      QCReport[]
+
+  @@index([workOrderId])
+  @@index([productId])
+  @@index([tenantId, status])
+  @@map("qc_checkpoints")
+}
+
+model InspectionPlan {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Plan Details
+  name        String
+  description String?
+  productId   String? @map("product_id")
+
+  // Type
+  inspectionType String @map("inspection_type") // incoming, in_process, final, periodic
+
+  // Frequency
+  frequency  String @default("every_unit") // every_unit, sample, periodic
+  sampleSize Int?   @map("sample_size")
+
+  // Criteria (JSON array)
+  criteria Json @default("[]") // [{ parameter, min, max, unit, method }]
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  // Metadata
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product     Product?       @relation(fields: [productId], references: [id])
+  checkpoints QCCheckpoint[]
+
+  @@index([tenantId, isActive])
+  @@index([productId])
+  @@map("inspection_plans")
+}
+
+model QCReport {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  checkpointId String @map("checkpoint_id")
+
+  // Report Details
+  reportNumber String @unique @map("report_number")
+
+  // Results (JSON array)
+  measurements Json @default("[]") // [{ parameter, actual, expected, unit, status }]
+
+  // Overall Result
+  overallResult String @map("overall_result") // passed, failed, conditional
+
+  // Pass/Fail Summary
+  passedCount Int @default(0) @map("passed_count")
+  failedCount Int @default(0) @map("failed_count")
+
+  // Defects
+  defectsFound Json @default("[]") @map("defects_found") // [{ defectType, quantity, severity }]
+
+  // Inspector
+  inspectedBy String   @map("inspected_by")
+  inspectedAt DateTime @default(now()) @map("inspected_at")
+
+  // Approval
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  // Metadata
+  notes       String?
+  attachments Json?    @default("[]") // Array of file paths
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  checkpoint        QCCheckpoint       @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  defects           DefectTracking[]
+  correctiveActions CorrectiveAction[]
+
+  @@index([checkpointId])
+  @@index([tenantId, inspectedAt])
+  @@map("qc_reports")
+}
+
+model DefectTracking {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  qcReportId String? @map("qc_report_id")
+
+  // Defect Details
+  defectCode String @map("defect_code")
+  defectName String @map("defect_name")
+  defectType String @map("defect_type") // visual, dimensional, functional, material
+
+  // Severity
+  severity String @default("minor") // minor, major, critical
+
+  // Quantity
+  quantity Decimal @db.Decimal(15, 4)
+
+  // Source
+  sourceType String @map("source_type") // work_order, inspection, customer_return
+  sourceId   String @map("source_id")
+
+  // Root Cause
+  rootCause String? @map("root_cause")
+
+  // Status
+  status String @default("open") // open, investigating, resolved, closed
+
+  // Assignment
+  assignedTo String? @map("assigned_to")
+
+  // Dates
+  detectedAt DateTime  @default(now()) @map("detected_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  // Metadata
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  qcReport          QCReport?          @relation(fields: [qcReportId], references: [id])
+  correctiveActions CorrectiveAction[]
+
+  @@index([tenantId, status])
+  @@index([sourceId])
+  @@map("defect_tracking")
+}
+
+model CorrectiveAction {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  defectId   String? @map("defect_id")
+  qcReportId String? @map("qc_report_id")
+
+  // Action Details
+  actionNumber String @unique @map("action_number")
+  title        String
+  description  String
+
+  // Action Type
+  actionType String @map("action_type") // immediate, preventive, corrective
+
+  // Priority
+  priority String @default("medium") // low, medium, high, urgent
+
+  // Assignment
+  assignedTo String   @map("assigned_to")
+  dueDate    DateTime @map("due_date")
+
+  // Status
+  status String @default("open") // open, in_progress, completed, verified, closed
+
+  // Completion
+  completedBy String?   @map("completed_by")
+  completedAt DateTime? @map("completed_at")
+
+  // Verification
+  verifiedBy        String?   @map("verified_by")
+  verifiedAt        DateTime? @map("verified_at")
+  verificationNotes String?   @map("verification_notes")
+
+  // Effectiveness
+  effectivenessRating Int? @map("effectiveness_rating") // 1-5 scale
+
+  // Metadata
+  notes     String?
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defect   DefectTracking? @relation(fields: [defectId], references: [id])
+  qcReport QCReport?       @relation(fields: [qcReportId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([assignedTo])
+  @@index([dueDate])
+  @@map("corrective_actions")
+}
+
+// ============================================
+// 5. PRODUCTION COSTING - 5 Features
+// ============================================
+
+model ProductionCostRecord {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  workOrderId String @map("work_order_id")
+
+  // Cost Type
+  costType     String @map("cost_type") // direct_material, direct_labor, machine, overhead, other
+  costCategory String @map("cost_category")
+
+  // Amount
+  unitCost  Decimal @default(0) @map("unit_cost") @db.Decimal(15, 2)
+  quantity  Decimal @default(1) @db.Decimal(15, 4)
+  totalCost Decimal @map("total_cost") @db.Decimal(15, 2)
+
+  // Reference
+  referenceType String? @map("reference_type") // product, employee, machine, etc.
+  referenceId   String? @map("reference_id")
+  referenceName String? @map("reference_name")
+
+  // Allocation Method (for overhead)
+  allocationMethod String?  @map("allocation_method") // labor_hours, machine_hours, units_produced
+  allocationBase   Decimal? @map("allocation_base") @db.Decimal(15, 4)
+
+  // Metadata
+  notes      String?
+  recordedBy String   @map("recorded_by")
+  recordedAt DateTime @default(now()) @map("recorded_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId, costType])
+  @@index([tenantId, recordedAt])
+  @@map("production_cost_records")
+}
+
+model ProductionCostAnalysis {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Analysis Period
+  analysisName String   @map("analysis_name")
+  startDate    DateTime @map("start_date")
+  endDate      DateTime @map("end_date")
+
+  // Product Filter
+  productId String? @map("product_id")
+
+  // Cost Summary
+  totalDirectMaterial Decimal @default(0) @map("total_direct_material") @db.Decimal(15, 2)
+  totalDirectLabor    Decimal @default(0) @map("total_direct_labor") @db.Decimal(15, 2)
+  totalMachineCost    Decimal @default(0) @map("total_machine_cost") @db.Decimal(15, 2)
+  totalOverhead       Decimal @default(0) @map("total_overhead") @db.Decimal(15, 2)
+  totalCost           Decimal @default(0) @map("total_cost") @db.Decimal(15, 2)
+
+  // Production Metrics
+  totalUnitsProduced Decimal @default(0) @map("total_units_produced") @db.Decimal(15, 4)
+  costPerUnit        Decimal @default(0) @map("cost_per_unit") @db.Decimal(15, 2)
+
+  // Variance
+  standardCost       Decimal? @map("standard_cost") @db.Decimal(15, 2)
+  costVariance       Decimal? @map("cost_variance") @db.Decimal(15, 2)
+  variancePercentage Decimal? @map("variance_percentage") @db.Decimal(5, 2)
+
+  // Breakdown (JSON)
+  costBreakdown Json @default("{}") @map("cost_breakdown")
+
+  // Metadata
+  generatedBy String   @map("generated_by")
+  generatedAt DateTime @default(now()) @map("generated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([tenantId, startDate, endDate])
+  @@index([productId])
+  @@map("production_cost_analysis")
+}
+
+// ============================================
+// BOTTLENECK ANALYSIS
+// ============================================
+
+model BottleneckAnalysis {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Analysis Details
+  analysisName String   @map("analysis_name")
+  analysisDate DateTime @default(now()) @map("analysis_date")
+
+  // Bottleneck Resource
+  resourceType String @map("resource_type") // machine, labor, material, process
+  resourceId   String @map("resource_id")
+  resourceName String @map("resource_name")
+
+  // Metrics
+  utilizationRate Decimal @map("utilization_rate") @db.Decimal(5, 2) // Percentage
+  capacityHours   Decimal @map("capacity_hours") @db.Decimal(10, 2)
+  usedHours       Decimal @map("used_hours") @db.Decimal(10, 2)
+  idleHours       Decimal @map("idle_hours") @db.Decimal(10, 2)
+
+  // Impact
+  delayedOrders Int     @default(0) @map("delayed_orders")
+  impactScore   Decimal @default(0) @map("impact_score") @db.Decimal(5, 2)
+
+  // Recommendations
+  recommendations Json @default("[]")
+
+  // Severity
+  severity String @default("medium") // low, medium, high, critical
+
+  // Status
+  status String @default("identified") // identified, investigating, resolving, resolved
+
+  // Metadata
+  notes      String?
+  analyzedBy String   @map("analyzed_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, analysisDate])
+  @@index([resourceType, resourceId])
+  @@map("bottleneck_analysis")
+}
+
+// ============================================
+// ADVANCED INVENTORY FEATURES - SCHEMA EXTENSION
+// Team 3: Klea (PM), Tafa (Backend), Mela (Frontend)
+// Created: 2026-02-23
+// All 50 Features - Database Models
+// ============================================
+
+// ============================================
+// 1. WAREHOUSE MANAGEMENT (12 features)
+// ============================================
+
+model Warehouse {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name    String
+  code    String  @unique
+  address String?
+  city    String?
+  country String  @default("AL")
+
+  // Configuration
+  type     String  @default("warehouse") // warehouse, distribution_center, retail
+  isActive Boolean @default(true) @map("is_active")
+
+  // Capacity
+  totalArea     Decimal? @map("total_area") @db.Decimal(10, 2) // in square meters
+  usedArea      Decimal? @default(0) @map("used_area") @db.Decimal(10, 2)
+  capacityUnits Int?     @default(0) @map("capacity_units")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  zones           WarehouseZone[]
+  bins            WarehouseBin[]
+  pickingLists    PickingList[]
+  packingStations PackingStation[]
+  putAwayRules    PutAwayRule[]
+  cycleCounts     CycleCount[]
+
+  @@index([tenantId])
+  @@map("warehouses")
+}
+
+model WarehouseZone {
+  id          String @id @default(uuid())
+  warehouseId String @map("warehouse_id")
+
+  name        String
+  code        String
+  description String?
+
+  // Zone Type
+  zoneType String @map("zone_type") // receiving, storage, picking, packing, shipping, bulk, refrigerated
+
+  // Temperature control
+  temperature    String? // ambient, refrigerated, frozen
+  minTemperature Decimal? @map("min_temperature") @db.Decimal(5, 2)
+  maxTemperature Decimal? @map("max_temperature") @db.Decimal(5, 2)
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  bins      WarehouseBin[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+  @@map("warehouse_zones")
+}
+
+model WarehouseBin {
+  id          String  @id @default(uuid())
+  warehouseId String  @map("warehouse_id")
+  zoneId      String? @map("zone_id")
+
+  // Location
+  aisle    String?
+  rack     String?
+  shelf    String?
+  position String?
+  binCode  String  @map("bin_code")
+  barcode  String? @unique
+
+  // Properties
+  binType   String   @default("standard") @map("bin_type") // standard, bulk, pallet
+  maxWeight Decimal? @map("max_weight") @db.Decimal(10, 2)
+  maxVolume Decimal? @map("max_volume") @db.Decimal(10, 2)
+
+  // Status
+  status   String  @default("available") // available, occupied, full, reserved, maintenance
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  warehouse    Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  zone         WarehouseZone?    @relation(fields: [zoneId], references: [id])
+  stockBins    StockBin[]
+  pickingItems PickingListItem[]
+
+  @@unique([warehouseId, binCode])
+  @@index([warehouseId])
+  @@index([zoneId])
+  @@index([barcode])
+  @@map("warehouse_bins")
+}
+
+model StockBin {
+  id        String  @id @default(uuid())
+  binId     String  @map("bin_id")
+  productId String  @map("product_id")
+  lotId     String? @map("lot_id")
+
+  quantity Decimal @db.Decimal(10, 2)
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  bin WarehouseBin @relation(fields: [binId], references: [id], onDelete: Cascade)
+  lot LotNumber?   @relation(fields: [lotId], references: [id])
+
+  @@unique([binId, productId, lotId])
+  @@index([binId])
+  @@index([productId])
+  @@map("stock_bins")
+}
+
+model PickingList {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  warehouseId String @map("warehouse_id")
+
+  pickingNumber String  @unique @map("picking_number")
+  orderNumber   String? @map("order_number")
+
+  // Assignment
+  assignedTo String? @map("assigned_to")
+
+  // Status
+  status   String @default("pending") // pending, assigned, picking, completed, cancelled
+  priority String @default("normal") // low, normal, high, urgent
+
+  // Timing
+  dueDate     DateTime? @map("due_date")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Notes
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
+  items     PickingListItem[]
+
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("picking_lists")
+}
+
+model PickingListItem {
+  id            String  @id @default(uuid())
+  pickingListId String  @map("picking_list_id")
+  productId     String  @map("product_id")
+  binId         String? @map("bin_id")
+  lotId         String? @map("lot_id")
+
+  quantityOrdered Decimal @map("quantity_ordered") @db.Decimal(10, 2)
+  quantityPicked  Decimal @default(0) @map("quantity_picked") @db.Decimal(10, 2)
+
+  // Sequence for optimal picking route
+  sequence Int @default(0)
+
+  status String @default("pending") // pending, picked, short_picked
+
+  notes String?
+
+  // Relations
+  pickingList PickingList   @relation(fields: [pickingListId], references: [id], onDelete: Cascade)
+  bin         WarehouseBin? @relation(fields: [binId], references: [id])
+  lot         LotNumber?    @relation(fields: [lotId], references: [id])
+
+  @@index([pickingListId])
+  @@index([productId])
+  @@map("picking_list_items")
+}
+
+model PackingStation {
+  id          String @id @default(uuid())
+  warehouseId String @map("warehouse_id")
+
+  stationNumber String  @map("station_number")
+  name          String
+  isActive      Boolean @default(true) @map("is_active")
+
+  // Current assignment
+  currentOrderNumber String? @map("current_order_number")
+  operatorId         String? @map("operator_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, stationNumber])
+  @@index([warehouseId])
+  @@map("packing_stations")
+}
+
+model PutAwayRule {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  warehouseId String @map("warehouse_id")
+
+  name        String
+  description String?
+  priority    Int     @default(0) // Higher = more priority
+
+  // Conditions
+  productCategoryId String?  @map("product_category_id")
+  productId         String?  @map("product_id")
+  minQuantity       Decimal? @map("min_quantity") @db.Decimal(10, 2)
+  maxQuantity       Decimal? @map("max_quantity") @db.Decimal(10, 2)
+
+  // Target
+  targetZoneType String? @map("target_zone_type")
+  targetZoneId   String? @map("target_zone_id")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@map("put_away_rules")
+}
+
+model ShipmentOrder {
+  id          String  @id @default(uuid())
+  tenantId    String  @map("tenant_id")
+  warehouseId String? @map("warehouse_id")
+
+  orderNumber  String  @unique @map("order_number")
+  customerName String? @map("customer_name")
+
+  // Addresses
+  shippingAddress Json? @map("shipping_address")
+
+  // Status
+  status String @default("pending") // pending, picking, packing, ready_to_ship, shipped, delivered
+
+  // Tracking
+  trackingNumber String? @map("tracking_number")
+  carrier        String?
+
+  // Timing
+  orderedAt   DateTime  @default(now()) @map("ordered_at")
+  pickedAt    DateTime? @map("picked_at")
+  packedAt    DateTime? @map("packed_at")
+  shippedAt   DateTime? @map("shipped_at")
+  deliveredAt DateTime? @map("delivered_at")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("shipment_orders")
+}
+
+model CycleCount {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  warehouseId String @map("warehouse_id")
+
+  countNumber String @unique @map("count_number")
+  countType   String @default("full") @map("count_type") // full, partial, spot
+
+  // Schedule
+  scheduledDate DateTime @map("scheduled_date")
+
+  // Assignment
+  assignedTo String? @map("assigned_to")
+
+  // Status
+  status String @default("scheduled") // scheduled, in_progress, completed, cancelled
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Stats
+  totalItems    Int @default(0) @map("total_items")
+  countedItems  Int @default(0) @map("counted_items")
+  discrepancies Int @default(0)
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  warehouse Warehouse        @relation(fields: [warehouseId], references: [id])
+  items     CycleCountItem[]
+
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("cycle_counts")
+}
+
+model CycleCountItem {
+  id           String  @id @default(uuid())
+  cycleCountId String  @map("cycle_count_id")
+  productId    String  @map("product_id")
+  binId        String? @map("bin_id")
+
+  expectedQuantity Decimal  @map("expected_quantity") @db.Decimal(10, 2)
+  countedQuantity  Decimal? @map("counted_quantity") @db.Decimal(10, 2)
+  variance         Decimal? @db.Decimal(10, 2)
+
+  status String @default("pending") // pending, counted, adjusted
+
+  countedAt DateTime? @map("counted_at")
+  notes     String?
+
+  // Relations
+  cycleCount CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+
+  @@index([cycleCountId])
+  @@index([productId])
+  @@map("cycle_count_items")
+}
+
+// ============================================
+// 2. BARCODE SYSTEM (8 features)
+// ============================================
+
+model ProductBarcode {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+
+  barcode     String  @unique
+  barcodeType String  @default("EAN13") @map("barcode_type") // EAN13, UPC, CODE128, QR, etc.
+  isPrimary   Boolean @default(false) @map("is_primary")
+
+  // Generation tracking
+  generatedBy String?   @map("generated_by")
+  generatedAt DateTime? @map("generated_at")
+
+  // Print tracking
+  printCount    Int       @default(0) @map("print_count")
+  lastPrintedAt DateTime? @map("last_printed_at")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([barcode])
+  @@map("product_barcodes")
+}
+
+model BarcodeTemplate {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String
+  description String?
+
+  // Template settings
+  templateType String @default("label") @map("template_type") // label, tag, shelf_label
+
+  // Dimensions (in mm)
+  width  Decimal @db.Decimal(5, 2)
+  height Decimal @db.Decimal(5, 2)
+
+  // Layout (JSON)
+  layout Json @default("{}") // fields, positions, fonts, sizes
+
+  // Barcode settings
+  barcodeFormat   String  @default("EAN13") @map("barcode_format")
+  showBarcodeText Boolean @default(true) @map("show_barcode_text")
+
+  // Fields to include
+  includeProductName Boolean @default(true) @map("include_product_name")
+  includePrice       Boolean @default(true) @map("include_price")
+  includeSku         Boolean @default(true) @map("include_sku")
+  includeDescription Boolean @default(false) @map("include_description")
+
+  isDefault Boolean @default(false) @map("is_default")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@map("barcode_templates")
+}
+
+model BarcodePrintJob {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  jobNumber  String  @unique @map("job_number")
+  templateId String? @map("template_id")
+
+  // Print details
+  productIds Json @default("[]") @map("product_ids") // Array of product IDs
+  quantity   Int  @default(1)
+  copies     Int  @default(1)
+
+  // Status
+  status String @default("pending") // pending, printing, completed, failed
+
+  // Output
+  outputFormat String  @default("PDF") @map("output_format") // PDF, ZPL, PNG
+  outputUrl    String? @map("output_url")
+
+  // Printer
+  printerName String? @map("printer_name")
+
+  errorMessage String? @map("error_message")
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  printedAt DateTime? @map("printed_at")
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("barcode_print_jobs")
+}
+
+model BarcodeScan {
+  id        String  @id @default(uuid())
+  tenantId  String  @map("tenant_id")
+  productId String? @map("product_id")
+
+  barcode  String
+  scanType String @map("scan_type") // receiving, picking, sale, audit, verification
+
+  // Location
+  warehouseId String? @map("warehouse_id")
+  binId       String? @map("bin_id")
+
+  // Scan details
+  scannedBy String   @map("scanned_by")
+  scannedAt DateTime @default(now()) @map("scanned_at")
+
+  // Verification
+  isValid      Boolean @default(true) @map("is_valid")
+  errorMessage String? @map("error_message")
+
+  // Metadata
+  deviceInfo Json? @map("device_info")
+
+  @@index([tenantId])
+  @@index([barcode])
+  @@index([scannedAt])
+  @@map("barcode_scans")
+}
+
+// ============================================
+// 3. STOCK FORECASTING (10 features)
+// ============================================
+
+model DemandForecast {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+
+  // Forecast period
+  forecastDate DateTime @map("forecast_date")
+  periodType   String   @default("daily") @map("period_type") // daily, weekly, monthly
+
+  // Forecast values
+  predictedDemand Decimal @map("predicted_demand") @db.Decimal(10, 2)
+  confidenceLevel Decimal @map("confidence_level") @db.Decimal(5, 2) // 0-100
+  lowerBound      Decimal @map("lower_bound") @db.Decimal(10, 2)
+  upperBound      Decimal @map("upper_bound") @db.Decimal(10, 2)
+
+  // Actuals (for accuracy tracking)
+  actualDemand Decimal? @map("actual_demand") @db.Decimal(10, 2)
+  accuracy     Decimal? @db.Decimal(5, 2)
+
+  // Factors
+  seasonalityFactor Decimal? @map("seasonality_factor") @db.Decimal(10, 4)
+  trendFactor       Decimal? @map("trend_factor") @db.Decimal(10, 4)
+
+  // Model info
+  modelVersion  String? @map("model_version")
+  algorithmUsed String? @map("algorithm_used") // moving_average, exponential_smoothing, arima, ml
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, productId, forecastDate])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([forecastDate])
+  @@map("demand_forecasts")
+}
+
+model SeasonalPattern {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  productId  String? @map("product_id")
+  categoryId String? @map("category_id")
+
+  patternName String @map("pattern_name")
+  patternType String @map("pattern_type") // daily, weekly, monthly, yearly, holiday
+
+  // Pattern data (JSON array of multipliers)
+  multipliers Json @default("[]") // e.g., [1.2, 1.5, 0.8, ...] for each period
+
+  // Date ranges
+  startDate DateTime? @map("start_date")
+  endDate   DateTime? @map("end_date")
+
+  // Statistics
+  averageMultiplier Decimal @default(1.0) @map("average_multiplier") @db.Decimal(10, 4)
+  peakMultiplier    Decimal @default(1.0) @map("peak_multiplier") @db.Decimal(10, 4)
+  lowMultiplier     Decimal @default(1.0) @map("low_multiplier") @db.Decimal(10, 4)
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([productId])
+  @@map("seasonal_patterns")
+}
+
+model StockForecastSettings {
+  id        String  @id @default(uuid())
+  tenantId  String  @map("tenant_id")
+  productId String? @map("product_id") // null = global settings
+
+  // Lead time
+  leadTimeDays        Int     @default(7) @map("lead_time_days")
+  leadTimeVariability Decimal @default(0) @map("lead_time_variability") @db.Decimal(5, 2)
+
+  // Safety stock
+  safetyStockDays   Int     @default(7) @map("safety_stock_days")
+  safetyStockMethod String  @default("fixed") @map("safety_stock_method") // fixed, dynamic, ml
+  minSafetyStock    Decimal @map("min_safety_stock") @db.Decimal(10, 2)
+
+  // Reorder point
+  reorderPoint    Decimal @map("reorder_point") @db.Decimal(10, 2)
+  reorderQuantity Decimal @map("reorder_quantity") @db.Decimal(10, 2)
+
+  // Economic Order Quantity
+  economicOrderQty   Decimal? @map("economic_order_qty") @db.Decimal(10, 2)
+  orderingCost       Decimal? @default(0) @map("ordering_cost") @db.Decimal(10, 2)
+  holdingCostPercent Decimal? @default(20) @map("holding_cost_percent") @db.Decimal(5, 2)
+
+  // Service level target
+  serviceLevel Decimal @default(95) @map("service_level") @db.Decimal(5, 2) // 0-100
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, productId])
+  @@index([tenantId])
+  @@map("stock_forecast_settings")
+}
+
+model StockTurnover {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+
+  // Period
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  periodType  String   @default("monthly") @map("period_type")
+
+  // Metrics
+  openingStock Decimal @map("opening_stock") @db.Decimal(10, 2)
+  closingStock Decimal @map("closing_stock") @db.Decimal(10, 2)
+  averageStock Decimal @map("average_stock") @db.Decimal(10, 2)
+
+  totalSold       Decimal @map("total_sold") @db.Decimal(10, 2)
+  costOfGoodsSold Decimal @map("cost_of_goods_sold") @db.Decimal(10, 2)
+
+  // Ratios
+  turnoverRate Decimal @map("turnover_rate") @db.Decimal(10, 4)
+  daysToSell   Decimal @map("days_to_sell") @db.Decimal(10, 2)
+
+  // Status
+  status String @default("normal") // fast_moving, normal, slow_moving, dead_stock
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, productId, periodStart])
+  @@index([tenantId])
+  @@index([productId])
+  @@map("stock_turnover")
+}
+
+// ============================================
+// 4. AUTOMATED REORDERING (8 features)
+// ============================================
+
+model PurchaseOrder {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  supplierId String @map("supplier_id")
+
+  poNumber  String   @unique @map("po_number")
+  orderDate DateTime @default(now()) @map("order_date")
+
+  // Status
+  status String @default("draft") // draft, pending_approval, approved, sent, receiving, completed, cancelled
+
+  // Approval
+  requiresApproval Boolean   @default(false) @map("requires_approval")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+
+  // Expected delivery
+  expectedDelivery DateTime? @map("expected_delivery")
+  actualDelivery   DateTime? @map("actual_delivery")
+
+  // Amounts
+  subtotal     Decimal @default(0) @db.Decimal(10, 2)
+  taxAmount    Decimal @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  shippingCost Decimal @default(0) @map("shipping_cost") @db.Decimal(10, 2)
+  totalAmount  Decimal @map("total_amount") @db.Decimal(10, 2)
+
+  // Automation
+  isAutoGenerated Boolean @default(false) @map("is_auto_generated")
+  triggeredBy     String? @map("triggered_by") // reorder_point, forecast, manual
+
+  notes String?
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  items PurchaseOrderItem[]
+
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String @id @default(uuid())
+  purchaseOrderId String @map("purchase_order_id")
+  productId       String @map("product_id")
+
+  productName String  @map("product_name")
+  sku         String?
+
+  quantityOrdered  Decimal @map("quantity_ordered") @db.Decimal(10, 2)
+  quantityReceived Decimal @default(0) @map("quantity_received") @db.Decimal(10, 2)
+
+  unitCost  Decimal @map("unit_cost") @db.Decimal(10, 2)
+  taxRate   Decimal @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  lineTotal Decimal @map("line_total") @db.Decimal(10, 2)
+
+  notes String?
+
+  // Relations
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+  @@map("purchase_order_items")
+}
+
+model ReorderRule {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+
+  ruleName String @map("rule_name")
+
+  // Trigger conditions
+  triggerType  String  @default("min_max") @map("trigger_type") // min_max, forecast_based, time_based
+  minLevel     Decimal @map("min_level") @db.Decimal(10, 2)
+  maxLevel     Decimal @map("max_level") @db.Decimal(10, 2)
+  reorderPoint Decimal @map("reorder_point") @db.Decimal(10, 2)
+  reorderQty   Decimal @map("reorder_qty") @db.Decimal(10, 2)
+
+  // Supplier selection
+  preferredSupplierId     String? @map("preferred_supplier_id")
+  supplierSelectionMethod String  @default("preferred") @map("supplier_selection_method") // preferred, lowest_price, fastest_delivery, best_performance
+
+  // Automation
+  autoApprove Boolean @default(false) @map("auto_approve")
+  autoSend    Boolean @default(false) @map("auto_send")
+
+  // Schedule
+  checkFrequency String? @default("daily") @map("check_frequency") // hourly, daily, weekly
+
+  isActive Boolean @default(true) @map("is_active")
+
+  // Stats
+  timesTriggered  Int       @default(0) @map("times_triggered")
+  lastTriggeredAt DateTime? @map("last_triggered_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, productId])
+  @@index([tenantId])
+  @@index([isActive])
+  @@map("reorder_rules")
+}
+
+model SupplierPerformance {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  supplierId String @map("supplier_id")
+
+  // Period
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+
+  // Metrics
+  totalOrders      Int @default(0) @map("total_orders")
+  onTimeDeliveries Int @default(0) @map("on_time_deliveries")
+  lateDeliveries   Int @default(0) @map("late_deliveries")
+
+  averageLeadTime Decimal @default(0) @map("average_lead_time") @db.Decimal(5, 2)
+  onTimePercent   Decimal @default(0) @map("on_time_percent") @db.Decimal(5, 2)
+
+  totalPurchaseValue Decimal @default(0) @map("total_purchase_value") @db.Decimal(12, 2)
+
+  qualityScore     Decimal @default(0) @map("quality_score") @db.Decimal(5, 2) // 0-100
+  performanceScore Decimal @default(0) @map("performance_score") @db.Decimal(5, 2) // 0-100
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, supplierId, periodStart])
+  @@index([tenantId])
+  @@index([supplierId])
+  @@map("supplier_performance")
+}
+
+// ============================================
+// 5. LOT TRACKING & RECALLS (7 features)
+// ============================================
+
+model LotNumber {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+
+  lotNumber    String  @map("lot_number")
+  batchNumber  String? @map("batch_number")
+  serialNumber String? @map("serial_number")
+
+  // Dates
+  manufacturingDate DateTime? @map("manufacturing_date")
+  expiryDate        DateTime? @map("expiry_date")
+  receivedDate      DateTime  @default(now()) @map("received_date")
+
+  // Quantity tracking
+  initialQuantity  Decimal @map("initial_quantity") @db.Decimal(10, 2)
+  currentQuantity  Decimal @map("current_quantity") @db.Decimal(10, 2)
+  reservedQuantity Decimal @default(0) @map("reserved_quantity") @db.Decimal(10, 2)
+
+  // Status
+  status String @default("active") // active, expired, recalled, depleted
+
+  // Supplier/Vendor
+  supplierId        String? @map("supplier_id")
+  supplierLotNumber String? @map("supplier_lot_number")
+
+  // Cost tracking (for FIFO/LIFO)
+  unitCost Decimal? @map("unit_cost") @db.Decimal(10, 2)
+
+  // Recall status
+  isRecalled   Boolean   @default(false) @map("is_recalled")
+  recallDate   DateTime? @map("recall_date")
+  recallReason String?   @map("recall_reason")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  stockBins        StockBin[]
+  pickingListItems PickingListItem[]
+  lotMovements     LotMovement[]
+
+  @@unique([tenantId, lotNumber])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([expiryDate])
+  @@index([status])
+  @@map("lot_numbers")
+}
+
+model LotMovement {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  lotId    String @map("lot_id")
+
+  movementType String  @map("movement_type") // in, out, transfer, adjustment
+  quantity     Decimal @db.Decimal(10, 2)
+
+  // Before/After
+  quantityBefore Decimal @map("quantity_before") @db.Decimal(10, 2)
+  quantityAfter  Decimal @map("quantity_after") @db.Decimal(10, 2)
+
+  // Reference
+  referenceType String? @map("reference_type") // purchase_order, sale, transfer, adjustment
+  referenceId   String? @map("reference_id")
+
+  // Location
+  fromBinId String? @map("from_bin_id")
+  toBinId   String? @map("to_bin_id")
+
+  // Tracking
+  performedBy String   @map("performed_by")
+  performedAt DateTime @default(now()) @map("performed_at")
+
+  notes String?
+
+  // Relations
+  lot LotNumber @relation(fields: [lotId], references: [id])
+
+  @@index([tenantId])
+  @@index([lotId])
+  @@index([performedAt])
+  @@map("lot_movements")
+}
+
+model LotInventoryPolicy {
+  id         String  @id @default(uuid())
+  tenantId   String  @map("tenant_id")
+  productId  String? @map("product_id") // null = global policy
+  categoryId String? @map("category_id")
+
+  policyName String @map("policy_name")
+
+  // FIFO/LIFO/FEFO
+  pickingMethod String @default("FIFO") @map("picking_method") // FIFO, LIFO, FEFO, Manual
+
+  // Expiry enforcement
+  enforceExpiry     Boolean @default(false) @map("enforce_expiry")
+  expiryWarningDays Int     @default(30) @map("expiry_warning_days")
+  blockExpiredSales Boolean @default(true) @map("block_expired_sales")
+
+  // Lot tracking requirements
+  requireLotOnReceiving Boolean @default(false) @map("require_lot_on_receiving")
+  requireLotOnSale      Boolean @default(false) @map("require_lot_on_sale")
+  requireSerialNumbers  Boolean @default(false) @map("require_serial_numbers")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([productId])
+  @@map("lot_inventory_policies")
+}
+
+model ProductRecall {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+
+  recallNumber String @unique @map("recall_number")
+  recallType   String @map("recall_type") // voluntary, mandatory, precautionary
+
+  // Scope
+  affectedLotNumbers Json @default("[]") @map("affected_lot_numbers") // Array of lot numbers
+
+  // Details
+  recallReason String @map("recall_reason") @db.Text
+  healthRisk   String @default("low") @map("health_risk") // low, medium, high, critical
+
+  // Dates
+  recallDate     DateTime  @map("recall_date")
+  effectiveDate  DateTime  @map("effective_date")
+  completionDate DateTime? @map("completion_date")
+
+  // Actions
+  actionRequired     String  @map("action_required") @db.Text
+  returnInstructions String? @map("return_instructions") @db.Text
+
+  // Status
+  status String @default("active") // active, in_progress, completed, cancelled
+
+  // Tracking
+  unitsAffected     Int @default(0) @map("units_affected")
+  unitsRecovered    Int @default(0) @map("units_recovered")
+  unitsDestroyed    Int @default(0) @map("units_destroyed")
+  customersNotified Int @default(0) @map("customers_notified")
+
+  // Notifications
+  notificationSent Boolean   @default(false) @map("notification_sent")
+  notificationDate DateTime? @map("notification_date")
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([status])
+  @@map("product_recalls")
+}
+
+model TraceabilityLog {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  entityType String @map("entity_type") // product, lot, shipment, transaction
+  entityId   String @map("entity_id")
+
+  eventType String @map("event_type") // received, stored, picked, sold, transferred, returned
+  eventData Json   @map("event_data")
+
+  // Location tracking
+  fromLocation String? @map("from_location")
+  toLocation   String? @map("to_location")
+
+  // Timestamps
+  eventTime  DateTime @default(now()) @map("event_time")
+  recordedBy String   @map("recorded_by")
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+  @@index([eventTime])
+  @@map("traceability_logs")
+}
+
+// ============================================
+// 6. INVENTORY AUDITS (5 features)
+// ============================================
+
+model InventoryAudit {
+  id          String  @id @default(uuid())
+  tenantId    String  @map("tenant_id")
+  warehouseId String? @map("warehouse_id")
+
+  auditNumber String @unique @map("audit_number")
+  auditType   String @map("audit_type") // full, partial, cycle, spot, surprise
+
+  // Schedule
+  scheduledDate DateTime  @map("scheduled_date")
+  startDate     DateTime? @map("start_date")
+  endDate       DateTime? @map("end_date")
+
+  // Assignment
+  auditorId   String? @map("auditor_id")
+  auditorName String? @map("auditor_name")
+
+  // Scope
+  scope Json @default("{}") // categories, locations, products to audit
+
+  // Status
+  status String @default("scheduled") // scheduled, in_progress, review, completed, cancelled
+
+  // Results
+  totalItemsToAudit  Int     @default(0) @map("total_items_to_audit")
+  itemsAudited       Int     @default(0) @map("items_audited")
+  itemsWithVariance  Int     @default(0) @map("items_with_variance")
+  totalVarianceValue Decimal @default(0) @map("total_variance_value") @db.Decimal(12, 2)
+
+  // Approval
+  requiresApproval Boolean   @default(false) @map("requires_approval")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+
+  notes String?
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  items       InventoryAuditItem[]
+  adjustments InventoryAdjustment[]
+
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@map("inventory_audits")
+}
+
+model InventoryAuditItem {
+  id               String  @id @default(uuid())
+  inventoryAuditId String  @map("inventory_audit_id")
+  productId        String  @map("product_id")
+  lotId            String? @map("lot_id")
+  binId            String? @map("bin_id")
+
+  // Expected vs Actual
+  expectedQuantity Decimal  @map("expected_quantity") @db.Decimal(10, 2)
+  auditedQuantity  Decimal? @map("audited_quantity") @db.Decimal(10, 2)
+  variance         Decimal? @db.Decimal(10, 2)
+  variancePercent  Decimal? @map("variance_percent") @db.Decimal(5, 2)
+
+  // Valuation
+  unitCost      Decimal? @map("unit_cost") @db.Decimal(10, 2)
+  varianceValue Decimal? @map("variance_value") @db.Decimal(10, 2)
+
+  // Status
+  status String @default("pending") // pending, audited, adjusted, approved
+
+  // Notes and reasons
+  varianceReason String? @map("variance_reason")
+  notes          String?
+
+  // Photos/evidence
+  photoUrls Json @default("[]") @map("photo_urls")
+
+  auditedBy String?   @map("audited_by")
+  auditedAt DateTime? @map("audited_at")
+
+  // Relations
+  inventoryAudit InventoryAudit @relation(fields: [inventoryAuditId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryAuditId])
+  @@index([productId])
+  @@map("inventory_audit_items")
+}
+
+model InventoryAdjustment {
+  id        String @id @default(uuid())
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+
+  adjustmentNumber String @unique @map("adjustment_number")
+  adjustmentType   String @map("adjustment_type") // count_adjustment, damage, theft, loss, found, other
+
+  // Quantities
+  quantityBefore Decimal @map("quantity_before") @db.Decimal(10, 2)
+  quantityAfter  Decimal @map("quantity_after") @db.Decimal(10, 2)
+  adjustmentQty  Decimal @map("adjustment_qty") @db.Decimal(10, 2)
+
+  // Valuation
+  unitCost   Decimal? @map("unit_cost") @db.Decimal(10, 2)
+  totalValue Decimal? @map("total_value") @db.Decimal(10, 2)
+
+  // Reference
+  referenceType    String? @map("reference_type") // audit, cycle_count, manual
+  referenceId      String? @map("reference_id")
+  inventoryAuditId String? @map("inventory_audit_id")
+
+  // Location
+  warehouseId String? @map("warehouse_id")
+  binId       String? @map("bin_id")
+  lotId       String? @map("lot_id")
+
+  // Reason
+  reason String  @map("reason")
+  notes  String?
+
+  // Approval
+  requiresApproval Boolean   @default(false) @map("requires_approval")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  rejectedBy       String?   @map("rejected_by")
+  rejectedAt       DateTime? @map("rejected_at")
+  rejectionReason  String?   @map("rejection_reason")
+
+  // Status
+  status String @default("pending") // pending, approved, applied, rejected
+
+  appliedBy String?   @map("applied_by")
+  appliedAt DateTime? @map("applied_at")
+
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  inventoryAudit InventoryAudit? @relation(fields: [inventoryAuditId], references: [id])
+
+  @@index([tenantId])
+  @@index([productId])
+  @@index([status])
+  @@index([inventoryAuditId])
+  @@map("inventory_adjustments")
+}
+
+model AuditSchedule {
+  id          String  @id @default(uuid())
+  tenantId    String  @map("tenant_id")
+  warehouseId String? @map("warehouse_id")
+
+  scheduleName String @map("schedule_name")
+  auditType    String @map("audit_type")
+
+  // Frequency
+  frequency  String @map("frequency") // daily, weekly, monthly, quarterly, yearly
+  dayOfWeek  Int?   @map("day_of_week") // 0-6 for weekly
+  dayOfMonth Int?   @map("day_of_month") // 1-31 for monthly
+
+  // Scope
+  scope Json @default("{}") // what to audit
+
+  // Assignment
+  assignedTo String? @map("assigned_to")
+
+  // Next occurrence
+  nextScheduledDate DateTime @map("next_scheduled_date")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([nextScheduledDate])
+  @@map("audit_schedules")
+}
+
+// ============================================
+// END OF ADVANCED INVENTORY SCHEMA
+// Total Models: 41 new models
+// Total Features: 50+ features
+// ============================================
+
+// ============================================
+// MANUFACTURING RELATIONS - ADD TO EXISTING MODELS
+// ============================================
+
+// Add to Tenant model:
+// BOMs                      BOM[]
+// bomItems                  BOMItem[]
+// bomSubstitutions          BOMSubstitution[]
+// bomVersions               BOMVersion[]
+// productionSchedules       ProductionSchedule[]
+// productionCalendars       ProductionCalendar[]
+// productionShifts          ProductionShift[]
+// productionMachines        ProductionMachine[]
+// machineSchedules          MachineSchedule[]
+// resourceAllocations       ResourceAllocation[]
+// materialRequirements      MaterialRequirement[]
+// productionForecasts       ProductionForecast[]
+// workOrders                WorkOrder[]
+// workOrderOperations       WorkOrderOperation[]
+// laborTracking             LaborTracking[]
+// machineTimeTracking       MachineTimeTracking[]
+// scrapRecords              ScrapRecord[]
+// qcCheckpoints             QCCheckpoint[]
+// inspectionPlans           InspectionPlan[]
+// qcReports                 QCReport[]
+// defectTracking            DefectTracking[]
+// correctiveActions         CorrectiveAction[]
+// productionCostRecords     ProductionCostRecord[]
+// productionCostAnalysis    ProductionCostAnalysis[]
+// bottleneckAnalysis        BottleneckAnalysis[]
+
+// Add to Product model:
+// boms                      BOM[]
+// bomItems                  BOMItem[]
+// productionSchedules       ProductionSchedule[]
+// materialRequirements      MaterialRequirement[]
+// productionForecasts       ProductionForecast[]
+// workOrders                WorkOrder[]
+// qcCheckpoints             QCCheckpoint[]
+// inspectionPlans           InspectionPlan[]
+// productionCostAnalysis    ProductionCostAnalysis[]

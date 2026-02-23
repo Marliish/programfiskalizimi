@@ -1,0 +1,599 @@
+
+// ============================================
+// FINANCIAL & HR MODELS (Day 13)
+// ============================================
+
+// Payroll Models
+model Employee {
+  id       String  @id @default(uuid())
+  tenantId String  @map("tenant_id")
+  userId   String? @map("user_id") // Link to User if they have system access
+
+  // Personal Info
+  firstName   String    @map("first_name")
+  lastName    String    @map("last_name")
+  email       String?
+  phone       String?
+  dateOfBirth DateTime? @map("date_of_birth")
+
+  // Employment
+  employeeNumber  String?   @unique @map("employee_number")
+  department      String?
+  position        String?
+  hireDate        DateTime  @map("hire_date")
+  terminationDate DateTime? @map("termination_date")
+  employmentType  String    @default("full_time") @map("employment_type") // full_time, part_time, contract
+
+  // Salary
+  baseSalary       Decimal @map("base_salary") @db.Decimal(10, 2)
+  currency         String  @default("ALL")
+  paymentFrequency String  @default("monthly") @map("payment_frequency") // monthly, biweekly, weekly
+
+  // Bank Details
+  bankName    String? @map("bank_name")
+  bankAccount String? @map("bank_account")
+
+  // Tax Info
+  taxId          String? @map("tax_id")
+  socialSecurity String? @map("social_security")
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant              Tenant                @relation(fields: [tenantId], references: [id])
+  payrollRuns         PayrollRunItem[]
+  timeOffRequests     TimeOffRequest[]
+  performanceReviews  PerformanceReview[]
+  trainingEnrollments TrainingEnrollment[]
+  documents           EmployeeDocument[]
+
+  @@index([tenantId])
+  @@index([employeeNumber])
+  @@map("employees")
+}
+
+model PayrollRun {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Period
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+  payDate     DateTime @map("pay_date")
+
+  // Status
+  status String @default("draft") // draft, approved, paid, cancelled
+
+  // Totals
+  totalGross      Decimal @map("total_gross") @db.Decimal(10, 2)
+  totalDeductions Decimal @map("total_deductions") @db.Decimal(10, 2)
+  totalNet        Decimal @map("total_net") @db.Decimal(10, 2)
+
+  // Approval
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  // Payment
+  paidBy String?   @map("paid_by")
+  paidAt DateTime? @map("paid_at")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant           @relation(fields: [tenantId], references: [id])
+  items  PayrollRunItem[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([periodStart])
+  @@map("payroll_runs")
+}
+
+model PayrollRunItem {
+  id           String @id @default(uuid())
+  payrollRunId String @map("payroll_run_id")
+  employeeId   String @map("employee_id")
+
+  // Gross Pay
+  basePay  Decimal @map("base_pay") @db.Decimal(10, 2)
+  overtime Decimal @default(0) @db.Decimal(10, 2)
+  bonuses  Decimal @default(0) @db.Decimal(10, 2)
+  grossPay Decimal @map("gross_pay") @db.Decimal(10, 2)
+
+  // Deductions
+  incomeTax       Decimal @default(0) @map("income_tax") @db.Decimal(10, 2)
+  socialSecurity  Decimal @default(0) @map("social_security") @db.Decimal(10, 2)
+  healthInsurance Decimal @default(0) @map("health_insurance") @db.Decimal(10, 2)
+  otherDeductions Decimal @default(0) @map("other_deductions") @db.Decimal(10, 2)
+  totalDeductions Decimal @map("total_deductions") @db.Decimal(10, 2)
+
+  // Net Pay
+  netPay Decimal @map("net_pay") @db.Decimal(10, 2)
+
+  // Payslip
+  payslipUrl String? @map("payslip_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+
+  @@index([payrollRunId])
+  @@index([employeeId])
+  @@map("payroll_run_items")
+}
+
+// Expense Tracking Models
+model Expense {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Expense Details
+  categoryId  String?   @map("category_id")
+  description String
+  amount      Decimal   @db.Decimal(10, 2)
+  currency    String    @default("ALL")
+  expenseDate DateTime  @map("expense_date")
+
+  // Vendor
+  vendorName String? @map("vendor_name")
+  vendorId   String? @map("vendor_id")
+
+  // Receipt
+  receiptUrl    String? @map("receipt_url")
+  receiptNumber String? @map("receipt_number")
+
+  // Approval Workflow
+  status          String    @default("pending") // pending, approved, rejected, paid
+  submittedBy     String    @map("submitted_by")
+  submittedAt     DateTime  @default(now()) @map("submitted_at")
+  approvedBy      String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  rejectedBy      String?   @map("rejected_by")
+  rejectedAt      DateTime? @map("rejected_at")
+  rejectionReason String?   @map("rejection_reason")
+
+  // Payment
+  paidAt        DateTime? @map("paid_at")
+  paymentMethod String?   @map("payment_method")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  category ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  vendor   Vendor?          @relation(fields: [vendorId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([expenseDate])
+  @@index([categoryId])
+  @@map("expenses")
+}
+
+model ExpenseCategory {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  name        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  expenses Expense[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("expense_categories")
+}
+
+// Bill Payment Models
+model Bill {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  vendorId String @map("vendor_id")
+
+  // Bill Details
+  billNumber String   @map("bill_number")
+  billDate   DateTime @map("bill_date")
+  dueDate    DateTime @map("due_date")
+
+  // Amounts
+  subtotal   Decimal @db.Decimal(10, 2)
+  taxAmount  Decimal @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  total      Decimal @db.Decimal(10, 2)
+  amountPaid Decimal @default(0) @map("amount_paid") @db.Decimal(10, 2)
+  amountDue  Decimal @map("amount_due") @db.Decimal(10, 2)
+
+  currency String @default("ALL")
+
+  // Status
+  status String @default("unpaid") // unpaid, partially_paid, paid, overdue, cancelled
+
+  // Documents
+  billUrl String? @map("bill_url")
+
+  notes String?
+
+  // Reminder
+  reminderSent Boolean   @default(false) @map("reminder_sent")
+  reminderDate DateTime? @map("reminder_date")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  vendor   Vendor        @relation(fields: [vendorId], references: [id])
+  payments BillPayment[]
+
+  @@index([tenantId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("bills")
+}
+
+model BillPayment {
+  id     String @id @default(uuid())
+  billId String @map("bill_id")
+
+  // Payment Details
+  paymentDate   DateTime @map("payment_date")
+  amount        Decimal  @db.Decimal(10, 2)
+  paymentMethod String   @map("payment_method") // cash, bank_transfer, check, card
+
+  // Reference
+  referenceNumber String? @map("reference_number")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bill Bill @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+  @@map("bill_payments")
+}
+
+model Vendor {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Vendor Info
+  name    String
+  email   String?
+  phone   String?
+  address String?
+
+  // Tax Info
+  taxId String? @map("tax_id")
+
+  // Bank Details
+  bankName    String? @map("bank_name")
+  bankAccount String? @map("bank_account")
+
+  // Payment Terms
+  paymentTerms String? @map("payment_terms") // net_30, net_60, etc.
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  bills    Bill[]
+  expenses Expense[]
+
+  @@index([tenantId])
+  @@map("vendors")
+}
+
+// Bank Reconciliation Models
+model BankAccount {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Account Details
+  accountName   String @map("account_name")
+  accountNumber String @map("account_number")
+  bankName      String @map("bank_name")
+  currency      String @default("ALL")
+
+  // Balance
+  currentBalance Decimal @map("current_balance") @db.Decimal(10, 2)
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  transactions    BankTransaction[]
+  reconciliations BankReconciliation[]
+
+  @@index([tenantId])
+  @@map("bank_accounts")
+}
+
+model BankTransaction {
+  id            String @id @default(uuid())
+  bankAccountId String @map("bank_account_id")
+
+  // Transaction Details
+  transactionDate DateTime @map("transaction_date")
+  description     String
+  reference       String?
+
+  // Amount
+  debit   Decimal? @db.Decimal(10, 2)
+  credit  Decimal? @db.Decimal(10, 2)
+  balance Decimal  @db.Decimal(10, 2)
+
+  // Matching
+  isMatched   Boolean @default(false) @map("is_matched")
+  matchedWith String? @map("matched_with") // transaction_id or expense_id
+  matchedType String? @map("matched_type") // transaction, expense, bill_payment
+
+  // Import
+  importedFrom String?   @map("imported_from") // csv, api
+  importedAt   DateTime? @map("imported_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@index([bankAccountId])
+  @@index([transactionDate])
+  @@index([isMatched])
+  @@map("bank_transactions")
+}
+
+model BankReconciliation {
+  id            String @id @default(uuid())
+  bankAccountId String @map("bank_account_id")
+
+  // Period
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+
+  // Balances
+  openingBalance Decimal @map("opening_balance") @db.Decimal(10, 2)
+  closingBalance Decimal @map("closing_balance") @db.Decimal(10, 2)
+
+  // Statement
+  statementBalance Decimal @map("statement_balance") @db.Decimal(10, 2)
+  difference       Decimal @db.Decimal(10, 2)
+
+  // Status
+  status      String    @default("in_progress") // in_progress, completed
+  completedAt DateTime? @map("completed_at")
+  completedBy String?   @map("completed_by")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@index([bankAccountId])
+  @@index([status])
+  @@map("bank_reconciliations")
+}
+
+// HR Management Models
+model OnboardingChecklist {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  employeeId String @map("employee_id")
+
+  // Task
+  taskName    String    @map("task_name")
+  description String?
+  dueDate     DateTime? @map("due_date")
+
+  // Status
+  isCompleted Boolean   @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+  completedBy String?   @map("completed_by")
+
+  sortOrder Int @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("onboarding_checklists")
+}
+
+model TrainingModule {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+
+  // Module Details
+  title       String
+  description String?
+  content     String? @db.Text
+  duration    Int? // minutes
+
+  // Media
+  videoUrl     String? @map("video_url")
+  documentUrls Json?   @map("document_urls") @db.JsonB
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  enrollments TrainingEnrollment[]
+
+  @@index([tenantId])
+  @@map("training_modules")
+}
+
+model TrainingEnrollment {
+  id               String @id @default(uuid())
+  trainingModuleId String @map("training_module_id")
+  employeeId       String @map("employee_id")
+
+  // Progress
+  status      String    @default("not_started") // not_started, in_progress, completed
+  progress    Int       @default(0) // percentage
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Assessment
+  score  Int?     // percentage
+  passed Boolean? @default(false)
+
+  // Certificate
+  certificateUrl String? @map("certificate_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  trainingModule TrainingModule @relation(fields: [trainingModuleId], references: [id], onDelete: Cascade)
+  employee       Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingModuleId, employeeId])
+  @@index([employeeId])
+  @@map("training_enrollments")
+}
+
+model PerformanceReview {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  employeeId String @map("employee_id")
+  reviewerId String @map("reviewer_id") // User ID
+
+  // Review Period
+  reviewPeriodStart DateTime @map("review_period_start")
+  reviewPeriodEnd   DateTime @map("review_period_end")
+  reviewDate        DateTime @map("review_date")
+
+  // Ratings (1-5)
+  overallRating       Int? @map("overall_rating")
+  performanceRating   Int? @map("performance_rating")
+  communicationRating Int? @map("communication_rating")
+  teamworkRating      Int? @map("teamwork_rating")
+
+  // Feedback
+  strengths           String? @db.Text
+  areasForImprovement String? @map("areas_for_improvement") @db.Text
+  goals               String? @db.Text
+  comments            String? @db.Text
+
+  // Status
+  status String @default("draft") // draft, submitted, acknowledged
+
+  // Employee Response
+  employeeComments String?   @map("employee_comments") @db.Text
+  acknowledgedAt   DateTime? @map("acknowledged_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("performance_reviews")
+}
+
+model TimeOffRequest {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  employeeId String @map("employee_id")
+
+  // Request Details
+  timeOffType String   @map("time_off_type") // vacation, sick, personal, unpaid
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  days        Decimal  @db.Decimal(4, 1) // half days allowed
+
+  reason String?
+
+  // Status
+  status String @default("pending") // pending, approved, rejected, cancelled
+
+  // Approval
+  approvedBy      String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  rejectedBy      String?   @map("rejected_by")
+  rejectedAt      DateTime? @map("rejected_at")
+  rejectionReason String?   @map("rejection_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([status])
+  @@map("time_off_requests")
+}
+
+model EmployeeDocument {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  employeeId String @map("employee_id")
+
+  // Document Details
+  documentType String @map("document_type") // contract, id, certificate, etc.
+  fileName     String @map("file_name")
+  fileUrl      String @map("file_url")
+  fileSize     Int?   @map("file_size") // bytes
+
+  // Metadata
+  description String?
+  expiryDate  DateTime? @map("expiry_date")
+
+  // Uploaded
+  uploadedBy String   @map("uploaded_by")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@map("employee_documents")
+}
+
+// ============================================
+// Generated: 2026-02-23 by Backend Team
+// Version: 0.5.0 (Day 13 - Financial & HR Features)
+// ============================================

@@ -8,6 +8,7 @@ import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
+import compress from '@fastify/compress';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -43,7 +44,55 @@ import { loyaltyRoutes } from './routes/loyalty';
 import { promotionRoutes } from './routes/promotions';
 import { notificationRoutes } from './routes/notifications';
 import { auditRoutes } from './routes/audit';
+// Day 10 Mobile & Optimization Routes
+import { mobileNotificationRoutes } from './routes/mobile-notifications';
 import { authenticateUser } from './middleware/auth';
+// Day 9 Advanced Features
+import dashboardRoutes from './routes/dashboards.js';
+import advancedReportRoutes from './routes/advanced-reports.js';
+import automationRoutes from './routes/automations.js';
+import forecastRoutes from './routes/forecasts.js';
+import syncRoutes from './routes/sync.js';
+import batchRoutes from './routes/batch.js';
+import apiMetricsRoutes from './routes/api-metrics.js';
+import integrationRoutes from './routes/integrations.js';
+import { websocketService } from './services/websocket.service.js';
+// Day 13 Marketing & Campaigns
+import { campaignsRoutes } from './routes/campaigns';
+import { surveysRoutes } from './routes/surveys';
+import { referralsRoutes } from './routes/referrals';
+import { socialMediaRoutes } from './routes/social-media';
+// Restaurant POS Features - Built by Tafa, Mela, Gesa
+import { tablesRoutes } from './routes/tables';
+import { kitchenRoutes } from './routes/kitchen';
+import { ordersRoutes } from './routes/orders';
+import { tipsRoutes } from './routes/tips';
+// Financial & HR Features - Built by Edison & Eroldi
+import payrollRoutes from './routes/payroll.js';
+import expenseManagementRoutes from './routes/expense-management.js';
+import billRoutes from './routes/bills.js';
+import bankReconciliationRoutes from './routes/bank-reconciliation.js';
+import hrManagementRoutes from './routes/hr-management.js';
+// Advanced POS Features - Team: Tafa, Mela, Gesa
+import { splitPaymentsRoutes } from './routes/split-payments';
+import { customReceiptsRoutes } from './routes/custom-receipts';
+import { tillManagementRoutes } from './routes/till-management';
+import { giftCardsVouchersRoutes } from './routes/gift-cards-vouchers';
+// E-commerce Features (45 features) - Team: Edison, Boli, Gesa
+import reviewsRoutes from './routes/reviews.js';
+import wishlistsRoutes from './routes/wishlists.js';
+import chatRoutes from './routes/chat.js';
+import abandonedCartsRoutes from './routes/abandoned-carts.js';
+import recommendationsRoutes from './routes/recommendations.js';
+import seoRoutes from './routes/seo.js';
+import { advancedPricingRoutes } from './routes/advanced-pricing';
+import { quickKeysRoutes } from './routes/quick-keys';
+// Advanced Inventory Features (50 features) - Built by Klea, Tafa, Mela
+import { advancedInventoryRoutes } from './routes/advanced-inventory';
+// Manufacturing Features (40 features) - Built by Eroldi (CTO), Boli, Artan
+import { manufacturingBOMRoutes } from './routes/manufacturing-bom';
+import { manufacturingPlanningRoutes } from './routes/manufacturing-planning';
+import { manufacturingWorkOrdersQCCostingRoutes } from './routes/manufacturing-workorders-qc-costing';
 
 // Load environment variables
 dotenv.config();
@@ -81,6 +130,12 @@ await server.register(multipart, {
   },
 });
 
+// Response Compression (gzip)
+await server.register(compress, {
+  global: true,
+  threshold: 1024, // Compress responses > 1KB
+});
+
 // Static file serving (uploads)
 await server.register(fastifyStatic, {
   root: path.join(process.cwd(), 'uploads'),
@@ -101,7 +156,7 @@ server.get('/health', async () => {
 server.get('/', async () => {
   return {
     name: 'FiscalNext API',
-    version: '0.3.0',
+    version: '0.4.0',
     docs: '/docs',
     endpoints: {
       auth: '/v1/auth',
@@ -127,6 +182,47 @@ server.get('/', async () => {
       emailMarketing: '/v1/email-marketing',
       barcodePrinter: '/v1/barcode-printer',
       backup: '/v1/backup',
+      // Day 10 Mobile & Optimization
+      sync: '/v1/sync',
+      batch: '/v1/batch',
+      mobileNotifications: '/v1/mobile/notifications',
+      apiMetrics: '/v1/api/metrics',
+      apiHealth: '/v1/api/health',
+      // Day 9 Advanced Features
+      dashboards: '/v1/dashboards',
+      advancedReports: '/v1/advanced-reports',
+      automations: '/v1/automations',
+      forecasts: '/v1/forecasts',
+      websocket: 'ws://localhost:5000',
+      // Day 13 Marketing & Campaigns
+      campaigns: '/v1/campaigns',
+      surveys: '/v1/surveys',
+      referrals: '/v1/referrals',
+      socialMedia: '/v1/social-media',
+      // Restaurant POS Features
+      tables: '/v1/tables',
+      kitchen: '/v1/kitchen',
+      orders: '/v1/orders',
+      tips: '/v1/tips',
+      // Financial & HR Features
+      payroll: '/v1/payroll',
+      expenses: '/v1/expenses',
+      bills: '/v1/bills',
+      vendors: '/v1/vendors',
+      bankReconciliation: '/v1/bank-reconciliation',
+      hrManagement: '/v1/hr',
+      // Advanced POS Features (50 features)
+      splitPayments: '/v1/split-payments',
+      customReceipts: '/v1/receipt-templates',
+      tillManagement: '/v1/tills',
+      tillSessions: '/v1/till-sessions',
+      tillReports: '/v1/till-reports',
+      giftCards: '/v1/gift-cards',
+      vouchers: '/v1/vouchers',
+      priceSchedules: '/v1/price-schedules',
+      volumePricing: '/v1/volume-pricing-rules',
+      customerPricing: '/v1/customer-specific-prices',
+      quickKeys: '/v1/quick-key-layouts',
     },
   };
 });
@@ -162,6 +258,62 @@ await server.register(emailMarketingRoutes, { prefix: '/v1/email-marketing' });
 await server.register(barcodePrinterRoutes, { prefix: '/v1/barcode-printer' });
 await server.register(backupRoutes, { prefix: '/v1/backup' });
 
+// Day 10 Mobile & Optimization Routes
+await server.register(mobileNotificationRoutes, { prefix: '/v1/mobile/notifications' });
+
+// Day 9 Advanced Features
+await server.register(syncRoutes, { prefix: '/v1/sync' });
+await server.register(batchRoutes, { prefix: '/v1/batch' });
+await server.register(apiMetricsRoutes, { prefix: '/v1' });
+await server.register(integrationRoutes, { prefix: '/v1/integrations' });
+await server.register(dashboardRoutes, { prefix: '/v1/dashboards' });
+await server.register(advancedReportRoutes, { prefix: '/v1/advanced-reports' });
+await server.register(automationRoutes, { prefix: '/v1/automations' });
+await server.register(forecastRoutes, { prefix: '/v1/forecasts' });
+
+// Day 13 Marketing & Campaigns
+await server.register(campaignsRoutes, { prefix: '/v1/campaigns' });
+await server.register(surveysRoutes, { prefix: '/v1/surveys' });
+await server.register(referralsRoutes, { prefix: '/v1/referrals' });
+await server.register(socialMediaRoutes, { prefix: '/v1/social-media' });
+
+// Restaurant POS Features - Built by Tafa, Mela, Gesa
+await server.register(tablesRoutes, { prefix: '/v1' });
+await server.register(kitchenRoutes, { prefix: '/v1' });
+await server.register(ordersRoutes, { prefix: '/v1' });
+await server.register(tipsRoutes, { prefix: '/v1' });
+
+// Financial & HR Features - Built by Edison & Eroldi
+await server.register(payrollRoutes, { prefix: '/v1/payroll' });
+await server.register(expenseManagementRoutes, { prefix: '/v1' });
+await server.register(billRoutes, { prefix: '/v1' });
+await server.register(bankReconciliationRoutes, { prefix: '/v1' });
+await server.register(hrManagementRoutes, { prefix: '/v1/hr' });
+
+// Advanced POS Features (50 features) - Built by Tafa, Mela, Gesa
+await server.register(splitPaymentsRoutes, { prefix: '/v1' });
+await server.register(customReceiptsRoutes, { prefix: '/v1' });
+await server.register(tillManagementRoutes, { prefix: '/v1' });
+await server.register(giftCardsVouchersRoutes, { prefix: '/v1' });
+await server.register(advancedPricingRoutes, { prefix: '/v1' });
+await server.register(quickKeysRoutes, { prefix: '/v1' });
+
+// Advanced Inventory Features (50 features) - Built by Klea, Tafa, Mela
+await server.register(advancedInventoryRoutes, { prefix: '/v1/advanced-inventory' });
+
+// E-commerce Features (45 features) - Built by Edison, Boli, Gesa
+await server.register(reviewsRoutes, { prefix: '/v1' });
+await server.register(wishlistsRoutes, { prefix: '/v1' });
+await server.register(chatRoutes, { prefix: '/v1' });
+await server.register(abandonedCartsRoutes, { prefix: '/v1' });
+await server.register(recommendationsRoutes, { prefix: '/v1' });
+await server.register(seoRoutes, { prefix: '/v1' });
+
+// Manufacturing Features (40 features) - Built by Eroldi (CTO), Boli, Artan
+await server.register(manufacturingBOMRoutes, { prefix: '/v1' });
+await server.register(manufacturingPlanningRoutes, { prefix: '/v1' });
+await server.register(manufacturingWorkOrdersQCCostingRoutes, { prefix: '/v1' });
+
 // Start Server
 const start = async () => {
   try {
@@ -169,6 +321,9 @@ const start = async () => {
     const host = process.env.HOST || '0.0.0.0';
 
     await server.listen({ port, host });
+    
+    // Initialize WebSocket server
+    websocketService.initialize(server.server);
     console.log(`
     🚀 FiscalNext API Server Started!
     
@@ -193,7 +348,26 @@ const start = async () => {
        • Promotions:    /v1/promotions/* (Day 6)
        • Notifications: /v1/notifications/* (Day 6)
        • Audit Logs:    /v1/audit-logs/* (Day 6)
+       • Dashboards:    /v1/dashboards/* (Day 9)
+       • Adv. Reports:  /v1/advanced-reports/* (Day 9)
+       • Automations:   /v1/automations/* (Day 9)
+       • Forecasts:     /v1/forecasts/* (Day 9)
+       • Campaigns:     /v1/campaigns/* (Day 13)
+       • Surveys:       /v1/surveys/* (Day 13)
+       • Referrals:     /v1/referrals/* (Day 13)
+       • Social Media:  /v1/social-media/* (Day 13)
+       • Tables:        /v1/tables/* (Restaurant)
+       • Kitchen:       /v1/kitchen/* (Restaurant)
+       • Orders:        /v1/orders/* (Restaurant)
+       • Tips:          /v1/tips/* (Restaurant)
+       • Payroll:       /v1/payroll/* (Financial)
+       • Expenses:      /v1/expenses/* (Financial)
+       • Bills:         /v1/bills/* (Financial)
+       • Vendors:       /v1/vendors/* (Financial)
+       • Bank Recon:    /v1/bank-reconciliation/* (Financial)
+       • HR:            /v1/hr/* (HR Management)
     
+    🔌 WebSocket Server: ws://localhost:${port}
     ✅ Ready to accept requests!
     `);
   } catch (err) {

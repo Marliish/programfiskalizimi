@@ -13,6 +13,43 @@ import {
 import { validateRequest } from '../middleware/validate';
 
 export async function notificationRoutes(server: FastifyInstance) {
+  // Get all notifications (inbox)
+  server.get(
+    '/notifications',
+    {
+      preHandler: [server.authenticate as any],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const tenantId = (request.user as any).tenantId;
+        const userId = (request.user as any).userId;
+        const { limit, unreadOnly } = request.query as any;
+
+        const history = await notificationService.getHistory(
+          tenantId,
+          userId,
+          limit ? parseInt(limit) : 50
+        );
+
+        // Filter unread if requested
+        let notifications = history;
+        if (unreadOnly === 'true') {
+          notifications = history.filter((n: any) => n.status !== 'sent');
+        }
+
+        reply.send({
+          success: true,
+          data: notifications,
+        });
+      } catch (error: any) {
+        reply.code(400).send({
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+  );
+
   // Create notification template
   server.post(
     '/notifications/templates',

@@ -29,3 +29,16 @@ export function validate<T>(schema: ZodSchema<T>, source: 'body' | 'query' | 'pa
     }
   };
 }
+
+// Simple validation helper for use in route handlers
+export function validateRequest<T>(schema: ZodSchema<T>, data: any): T {
+  try {
+    return schema.parse(data);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const errorMessage = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+      throw new Error(`Validation failed: ${errorMessage}`);
+    }
+    throw new Error('Invalid request data');
+  }
+}

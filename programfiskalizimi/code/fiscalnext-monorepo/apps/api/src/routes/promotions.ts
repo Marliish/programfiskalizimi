@@ -75,6 +75,31 @@ export async function promotionRoutes(server: FastifyInstance) {
     }
   );
 
+  // Get active promotions (currently running)
+  server.get(
+    '/promotions/active',
+    {
+      preHandler: [server.authenticate as any],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const tenantId = (request.user as any).tenantId;
+
+        const promotions = await promotionService.getPromotions(tenantId, true);
+
+        reply.send({
+          success: true,
+          data: promotions,
+        });
+      } catch (error: any) {
+        reply.code(400).send({
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+  );
+
   // Get promotion by ID
   server.get(
     '/promotions/:id',

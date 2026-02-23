@@ -1,0 +1,10 @@
+  // Advanced Inventory
+  supplierProducts     SupplierProduct[]
+  purchaseOrderItems   PurchaseOrderItem[]
+  purchaseReceiptItems PurchaseReceiptItem[]
+  batches              Batch[]
+  batchMovements       BatchMovement[]
+  recipe               Recipe?
+  recipeIngredients    RecipeIngredient[]     @relation("RecipeIngredients")
+  assemblyOrders       AssemblyOrder[]        @relation("AssemblyProduct")
+  assemblyComponents   AssemblyComponent[]    @relation("AssemblyComponents")

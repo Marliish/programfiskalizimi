@@ -1,0 +1,542 @@
+
+// ============================================
+// DAY 13 MODELS - ADVANCED INVENTORY FEATURES
+// ============================================
+
+// 1. SUPPLIER MANAGEMENT
+model Supplier {
+  id       String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  
+  name        String
+  code        String? // Supplier code
+  email       String?
+  phone       String?
+  website     String?
+  
+  // Address
+  address     String?
+  city        String?
+  country     String?
+  postalCode  String? @map("postal_code")
+  
+  // Tax & Business
+  taxId       String? @map("tax_id") // VAT/Tax ID
+  
+  // Payment terms
+  paymentTerms    String? @map("payment_terms") // e.g., "Net 30", "Net 60"
+  defaultCurrency String? @default("EUR") @map("default_currency")
+  
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+  rating   Int?    @default(0) // 1-5 stars
+  
+  // Notes
+  notes String?
+  
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  
+  // Relations
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  contacts        SupplierContact[]
+  products        SupplierProduct[]
+  purchaseOrders  PurchaseOrder[]
+  
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([isActive])
+  @@map("suppliers")
+}
+
+model SupplierContact {
+  id         String @id @default(uuid())
+  supplierId String @map("supplier_id")
+  
+  name       String
+  title      String? // e.g., "Sales Manager"
+  email      String?
+  phone      String?
+  isPrimary  Boolean @default(false) @map("is_primary")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  @@index([supplierId])
+  @@map("supplier_contacts")
+}
+
+model SupplierProduct {
+  id         String @id @default(uuid())
+  supplierId String @map("supplier_id")
+  productId  String @map("product_id")
+  
+  supplierSku   String?  @map("supplier_sku") // Supplier's product code
+  supplierName  String?  @map("supplier_name") // How supplier calls this product
+  costPrice     Decimal? @map("cost_price") @db.Decimal(10, 2)
+  minOrderQty   Decimal? @default(1) @map("min_order_qty") @db.Decimal(10, 2)
+  leadTimeDays  Int?     @default(7) @map("lead_time_days")
+  isPreferred   Boolean  @default(false) @map("is_preferred")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([supplierId, productId])
+  @@index([supplierId])
+  @@index([productId])
+  @@map("supplier_products")
+}
+
+// 2. PURCHASE ORDERS
+model PurchaseOrder {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  supplierId String @map("supplier_id")
+  locationId String? @map("location_id") // Destination warehouse/store
+  userId     String @map("user_id") // Creator
+  
+  poNumber   String   @map("po_number")
+  
+  // Status: draft, pending_approval, approved, sent, partial, received, cancelled
+  status     String   @default("draft")
+  
+  // Dates
+  orderDate     DateTime  @default(now()) @map("order_date")
+  expectedDate  DateTime? @map("expected_date")
+  receivedDate  DateTime? @map("received_date")
+  
+  // Amounts
+  subtotal      Decimal @default(0) @map("subtotal") @db.Decimal(10, 2)
+  taxAmount     Decimal @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  shippingCost  Decimal @default(0) @map("shipping_cost") @db.Decimal(10, 2)
+  totalAmount   Decimal @default(0) @map("total_amount") @db.Decimal(10, 2)
+  
+  // Approval workflow
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+  
+  // Notes
+  notes          String?
+  internalNotes  String? @map("internal_notes")
+  
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  
+  // Relations
+  tenant   Tenant              @relation(fields: [tenantId], references: [id])
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  location Location?           @relation(fields: [locationId], references: [id])
+  items    PurchaseOrderItem[]
+  receipts PurchaseReceipt[]
+  
+  @@unique([tenantId, poNumber])
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([orderDate])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String @id @default(uuid())
+  purchaseOrderId String @map("purchase_order_id")
+  productId       String @map("product_id")
+  
+  productName  String  @map("product_name")
+  sku          String?
+  
+  // Quantities
+  quantityOrdered  Decimal @map("quantity_ordered") @db.Decimal(10, 2)
+  quantityReceived Decimal @default(0) @map("quantity_received") @db.Decimal(10, 2)
+  
+  // Pricing
+  unitCost  Decimal @map("unit_cost") @db.Decimal(10, 2)
+  taxRate   Decimal @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+  
+  notes String?
+  
+  // Relations
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+  
+  @@index([purchaseOrderId])
+  @@index([productId])
+  @@map("purchase_order_items")
+}
+
+model PurchaseReceipt {
+  id              String @id @default(uuid())
+  purchaseOrderId String @map("purchase_order_id")
+  tenantId        String @map("tenant_id")
+  locationId      String? @map("location_id")
+  userId          String @map("user_id") // Who received the order
+  
+  receiptNumber String   @map("receipt_number")
+  receiptDate   DateTime @default(now()) @map("receipt_date")
+  
+  // Status: partial, complete
+  receiptType String @default("partial") @map("receipt_type")
+  
+  notes String?
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  purchaseOrder PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
+  tenant        Tenant                @relation(fields: [tenantId], references: [id])
+  location      Location?             @relation(fields: [locationId], references: [id])
+  items         PurchaseReceiptItem[]
+  
+  @@unique([tenantId, receiptNumber])
+  @@index([purchaseOrderId])
+  @@index([tenantId])
+  @@map("purchase_receipts")
+}
+
+model PurchaseReceiptItem {
+  id               String @id @default(uuid())
+  purchaseReceiptId String @map("purchase_receipt_id")
+  productId        String @map("product_id")
+  
+  quantityReceived Decimal @map("quantity_received") @db.Decimal(10, 2)
+  batchNumber      String? @map("batch_number") // Link to batch if using batch tracking
+  
+  notes String?
+  
+  // Relations
+  purchaseReceipt PurchaseReceipt @relation(fields: [purchaseReceiptId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id])
+  
+  @@index([purchaseReceiptId])
+  @@index([productId])
+  @@map("purchase_receipt_items")
+}
+
+// 3. BATCH & LOT TRACKING
+model Batch {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  productId  String @map("product_id")
+  locationId String? @map("location_id")
+  
+  batchNumber    String   @map("batch_number")
+  lotNumber      String?  @map("lot_number")
+  
+  // Quantities
+  initialQuantity  Decimal @map("initial_quantity") @db.Decimal(10, 2)
+  currentQuantity  Decimal @map("current_quantity") @db.Decimal(10, 2)
+  
+  // Costing method
+  costingMethod String  @default("FIFO") @map("costing_method") // FIFO, LIFO, Average
+  unitCost      Decimal @map("unit_cost") @db.Decimal(10, 2)
+  
+  // Dates
+  manufacturingDate DateTime? @map("manufacturing_date")
+  expirationDate    DateTime? @map("expiration_date")
+  receivedDate      DateTime  @default(now()) @map("received_date")
+  
+  // Status
+  status String @default("active") // active, expired, recalled, depleted
+  
+  // Supplier reference
+  supplierId      String? @map("supplier_id")
+  purchaseOrderId String? @map("purchase_order_id")
+  
+  // Notes
+  notes String?
+  
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  product   Product         @relation(fields: [productId], references: [id])
+  location  Location?       @relation(fields: [locationId], references: [id])
+  movements BatchMovement[]
+  
+  @@unique([tenantId, batchNumber])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([locationId])
+  @@index([expirationDate])
+  @@index([status])
+  @@map("batches")
+}
+
+model BatchMovement {
+  id        String @id @default(uuid())
+  batchId   String @map("batch_id")
+  tenantId  String @map("tenant_id")
+  productId String @map("product_id")
+  userId    String @map("user_id")
+  
+  // Movement details
+  type             String  @map("type") // in, out, adjustment, sale, transfer, expire
+  quantity         Decimal @db.Decimal(10, 2)
+  quantityBefore   Decimal @map("quantity_before") @db.Decimal(10, 2)
+  quantityAfter    Decimal @map("quantity_after") @db.Decimal(10, 2)
+  
+  // Reference
+  referenceType String? @map("reference_type") // transaction, purchase_receipt, transfer
+  referenceId   String? @map("reference_id")
+  
+  notes String?
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  batch   Batch   @relation(fields: [batchId], references: [id])
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  
+  @@index([batchId])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([createdAt])
+  @@map("batch_movements")
+}
+
+// 4. RECIPE & INGREDIENTS
+model Recipe {
+  id          String @id @default(uuid())
+  tenantId    String @map("tenant_id")
+  productId   String @unique @map("product_id") // The finished product
+  
+  name        String
+  description String?
+  
+  // Yields
+  yieldQuantity Decimal @default(1) @map("yield_quantity") @db.Decimal(10, 2)
+  yieldUnit     String  @default("pieces") @map("yield_unit")
+  
+  // Costing
+  totalCost     Decimal @default(0) @map("total_cost") @db.Decimal(10, 2)
+  costPerUnit   Decimal @default(0) @map("cost_per_unit") @db.Decimal(10, 2)
+  
+  // Preparation
+  prepTime      Int?    @map("prep_time") // minutes
+  instructions  String?
+  
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+  
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  product     Product            @relation(fields: [productId], references: [id])
+  ingredients RecipeIngredient[]
+  variations  RecipeVariation[]
+  assemblyOrders AssemblyOrder[]
+  
+  @@index([tenantId])
+  @@index([productId])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id               String @id @default(uuid())
+  recipeId         String @map("recipe_id")
+  ingredientId     String @map("ingredient_id") // Product ID of the ingredient
+  
+  quantity         Decimal @db.Decimal(10, 2)
+  unit             String
+  
+  // Costing
+  costPerUnit      Decimal? @map("cost_per_unit") @db.Decimal(10, 2)
+  totalCost        Decimal? @map("total_cost") @db.Decimal(10, 2)
+  
+  // Optional/Required
+  isOptional       Boolean @default(false) @map("is_optional")
+  
+  notes            String?
+  sortOrder        Int     @default(0) @map("sort_order")
+  
+  // Relations
+  recipe     Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient Product @relation("RecipeIngredients", fields: [ingredientId], references: [id])
+  
+  @@index([recipeId])
+  @@index([ingredientId])
+  @@map("recipe_ingredients")
+}
+
+model RecipeVariation {
+  id       String @id @default(uuid())
+  recipeId String @map("recipe_id")
+  
+  name        String
+  description String?
+  
+  // Modifications (JSON: ingredient adjustments)
+  modifications Json @db.JsonB
+  
+  // Cost adjustment
+  costAdjustment Decimal @default(0) @map("cost_adjustment") @db.Decimal(10, 2)
+  
+  isActive Boolean @default(true) @map("is_active")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  
+  @@index([recipeId])
+  @@map("recipe_variations")
+}
+
+// 5. MANUFACTURING & ASSEMBLY
+model AssemblyOrder {
+  id         String @id @default(uuid())
+  tenantId   String @map("tenant_id")
+  productId  String @map("product_id") // Final product to assemble
+  recipeId   String? @map("recipe_id")
+  locationId String? @map("location_id")
+  userId     String @map("user_id") // Creator
+  
+  orderNumber String   @map("order_number")
+  
+  // Quantities
+  quantityToAssemble  Decimal @map("quantity_to_assemble") @db.Decimal(10, 2)
+  quantityAssembled   Decimal @default(0) @map("quantity_assembled") @db.Decimal(10, 2)
+  
+  // Status: draft, scheduled, in_progress, completed, cancelled
+  status String @default("draft")
+  
+  // Dates
+  scheduledDate DateTime? @map("scheduled_date")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  
+  // Costing
+  totalCost Decimal? @map("total_cost") @db.Decimal(10, 2)
+  
+  // Notes
+  notes String?
+  
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  
+  // Relations
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  product       Product              @relation("AssemblyProduct", fields: [productId], references: [id])
+  recipe        Recipe?              @relation(fields: [recipeId], references: [id])
+  location      Location?            @relation(fields: [locationId], references: [id])
+  components    AssemblyComponent[]
+  workOrders    WorkOrder[]
+  qualityChecks QualityCheck[]
+  
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@map("assembly_orders")
+}
+
+model AssemblyComponent {
+  id              String @id @default(uuid())
+  assemblyOrderId String @map("assembly_order_id")
+  componentId     String @map("component_id") // Product ID of the component
+  
+  quantityRequired Decimal @map("quantity_required") @db.Decimal(10, 2)
+  quantityUsed     Decimal @default(0) @map("quantity_used") @db.Decimal(10, 2)
+  unit             String
+  
+  // Batch tracking
+  batchNumber String? @map("batch_number")
+  
+  // Relations
+  assemblyOrder AssemblyOrder @relation(fields: [assemblyOrderId], references: [id], onDelete: Cascade)
+  component     Product       @relation("AssemblyComponents", fields: [componentId], references: [id])
+  
+  @@index([assemblyOrderId])
+  @@index([componentId])
+  @@map("assembly_components")
+}
+
+model WorkOrder {
+  id              String @id @default(uuid())
+  assemblyOrderId String @map("assembly_order_id")
+  tenantId        String @map("tenant_id")
+  userId          String @map("user_id") // Assigned worker
+  
+  workOrderNumber String   @map("work_order_number")
+  
+  // Status: pending, in_progress, paused, completed, failed
+  status String @default("pending")
+  
+  // Time tracking
+  startedAt   DateTime? @map("started_at")
+  pausedAt    DateTime? @map("paused_at")
+  completedAt DateTime? @map("completed_at")
+  
+  // Duration in minutes
+  estimatedDuration Int? @map("estimated_duration")
+  actualDuration    Int? @map("actual_duration")
+  
+  notes String?
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  assemblyOrder AssemblyOrder @relation(fields: [assemblyOrderId], references: [id], onDelete: Cascade)
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  
+  @@unique([tenantId, workOrderNumber])
+  @@index([assemblyOrderId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model QualityCheck {
+  id              String @id @default(uuid())
+  assemblyOrderId String @map("assembly_order_id")
+  tenantId        String @map("tenant_id")
+  userId          String @map("user_id") // Inspector
+  
+  checkType    String @map("check_type") // visual, measurement, functional
+  checkStatus  String @map("check_status") // pass, fail, pending
+  
+  // Checklist items (JSON)
+  checklistItems Json @map("checklist_items") @db.JsonB
+  
+  // Results
+  defectsFound Int?    @default(0) @map("defects_found")
+  notes        String?
+  
+  checkedAt DateTime @default(now()) @map("checked_at")
+  
+  // Relations
+  assemblyOrder AssemblyOrder @relation(fields: [assemblyOrderId], references: [id], onDelete: Cascade)
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  
+  @@index([assemblyOrderId])
+  @@index([tenantId])
+  @@index([checkStatus])
+  @@map("quality_checks")
+}
+
+// ============================================
+// Generated: 2026-02-23 by Advanced Inventory Team
+// Version: 0.5.0 (Day 13 - Advanced Inventory)
+// ============================================
