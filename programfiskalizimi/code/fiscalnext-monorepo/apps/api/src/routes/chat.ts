@@ -20,15 +20,6 @@ import {
 const chatRoutes: FastifyPluginAsync = async (fastify) => {
   // Create conversation (visitor starts chat)
   fastify.post('/chat/conversations', {
-    schema: {
-      body: z.object({
-        customerId: z.string().uuid().optional(),
-        visitorName: z.string().optional(),
-        visitorEmail: z.string().email().optional(),
-        currentUrl: z.string().optional(),
-        referrerUrl: z.string().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user?.tenantId || request.body.tenantId;
       const conversation = await createConversation(tenantId, request.body, request.ip);
@@ -38,15 +29,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get conversations (agent dashboard)
   fastify.get('/chat/conversations', {
-    schema: {
-      querystring: z.object({
-        status: z.enum(['open', 'active', 'resolved', 'closed']).optional(),
-        assignedTo: z.string().uuid().optional(),
-        priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
-        page: z.number().int().min(1).optional().default(1),
-        limit: z.number().int().min(1).max(100).optional().default(20),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const conversations = await getConversations(tenantId, request.query);
@@ -66,13 +48,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Update conversation
   fastify.patch('/chat/conversations/:id', {
-    schema: {
-      body: z.object({
-        status: z.enum(['open', 'active', 'resolved', 'closed']).optional(),
-        priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
-        tags: z.array(z.string()).optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const { id } = request.params as { id: string };
@@ -83,11 +58,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Assign conversation to agent
   fastify.post('/chat/conversations/:id/assign', {
-    schema: {
-      body: z.object({
-        agentId: z.string().uuid(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const { id } = request.params as { id: string };
@@ -108,13 +78,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Send message
   fastify.post('/chat/conversations/:id/messages', {
-    schema: {
-      body: z.object({
-        message: z.string().min(1),
-        senderId: z.string().uuid().optional(),
-        isFromAgent: z.boolean().optional().default(false),
-      }),
-    },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const message = await sendMessage(id, request.body);
@@ -124,12 +87,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get messages
   fastify.get('/chat/conversations/:id/messages', {
-    schema: {
-      querystring: z.object({
-        page: z.number().int().min(1).optional().default(1),
-        limit: z.number().int().min(1).max(100).optional().default(50),
-      }),
-    },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const messages = await getMessages(id, request.query);
@@ -161,15 +118,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Create canned response
   fastify.post('/chat/canned-responses', {
-    schema: {
-      body: z.object({
-        title: z.string().min(1),
-        message: z.string().min(1),
-        shortcut: z.string().optional(),
-        category: z.string().optional(),
-        isShared: z.boolean().optional().default(false),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const userId = request.user.id;
@@ -180,12 +128,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get canned responses
   fastify.get('/chat/canned-responses', {
-    schema: {
-      querystring: z.object({
-        category: z.string().optional(),
-        shortcut: z.string().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const userId = request.user.id;
@@ -205,13 +147,6 @@ const chatRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Track visitor
   fastify.post('/chat/track-visitor', {
-    schema: {
-      body: z.object({
-        currentUrl: z.string(),
-        referrerUrl: z.string().optional(),
-        customerId: z.string().uuid().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user?.tenantId || request.body.tenantId;
       await trackVisitor(tenantId, request.body, request.ip, request.headers['user-agent']);

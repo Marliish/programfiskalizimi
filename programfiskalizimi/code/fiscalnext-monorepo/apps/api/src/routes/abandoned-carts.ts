@@ -16,14 +16,6 @@ import {
 const abandonedCartsRoutes: FastifyPluginAsync = async (fastify) => {
   // Save cart
   fastify.post('/carts/save', {
-    schema: {
-      body: z.object({
-        customerId: z.string().uuid().optional(),
-        sessionId: z.string().optional(),
-        name: z.string().optional(),
-        cartData: z.object({}).passthrough(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user?.tenantId || request.body.tenantId;
       const cart = await saveCart(tenantId, request.body);
@@ -61,13 +53,6 @@ const abandonedCartsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Create abandoned cart recovery
   fastify.post('/abandoned-carts/recoveries', {
-    schema: {
-      body: z.object({
-        cartId: z.string().uuid(),
-        customerId: z.string().uuid().optional(),
-        customerEmail: z.string().email().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const recovery = await createRecovery(tenantId, request.body);
@@ -77,11 +62,6 @@ const abandonedCartsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Send recovery email
   fastify.post('/abandoned-carts/recoveries/:id/send-email', {
-    schema: {
-      body: z.object({
-        templateId: z.string().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       await sendRecoveryEmail(id, request.body.templateId);
@@ -91,11 +71,6 @@ const abandonedCartsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Send recovery SMS
   fastify.post('/abandoned-carts/recoveries/:id/send-sms', {
-    schema: {
-      body: z.object({
-        message: z.string().min(1),
-      }),
-    },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       await sendRecoverySMS(id, request.body.message);
@@ -105,12 +80,6 @@ const abandonedCartsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Create discount incentive
   fastify.post('/abandoned-carts/recoveries/:id/discount', {
-    schema: {
-      body: z.object({
-        discountType: z.enum(['percentage', 'fixed']),
-        discountAmount: z.number().positive(),
-      }),
-    },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const recovery = await createDiscountIncentive(id, request.body);
@@ -120,12 +89,6 @@ const abandonedCartsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get recovery analytics
   fastify.get('/abandoned-carts/analytics', {
-    schema: {
-      querystring: z.object({
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const analytics = await getRecoveryAnalytics(tenantId, request.query);

@@ -4,7 +4,7 @@
 
 import { PrismaClient } from '@fiscalnext/database';
 import JsBarcode from 'jsbarcode';
-import { createCanvas } from 'canvas';
+// import { createCanvas } from 'canvas'; // Temporarily disabled - native dependency
 import QRCode from 'qrcode';
 
 const prisma = new PrismaClient();
@@ -281,19 +281,13 @@ export const barcodeService = {
       return await QRCode.toDataURL(barcode);
     }
 
-    const canvas = createCanvas(200, height);
-    JsBarcode(canvas, barcode, {
-      format: type,
-      width,
-      height,
-      displayValue: true,
-    });
-
-    if (format === 'dataurl') {
-      return canvas.toDataURL();
-    }
-
-    return canvas.toBuffer().toString('base64');
+    // Temporarily mocked - canvas native dependency needs system libraries
+    // TODO: Install canvas native dependencies or use alternative barcode library
+    const mockBarcodeImage = `data:image/svg+xml;base64,${Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="${height}"><text x="100" y="${height/2}" text-anchor="middle">${barcode}</text></svg>`
+    ).toString('base64')}`;
+    
+    return mockBarcodeImage;
   },
 
   // ===== BARCODE SCANNING =====

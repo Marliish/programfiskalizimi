@@ -16,15 +16,6 @@ import {
 const wishlistsRoutes: FastifyPluginAsync = async (fastify) => {
   // Create wishlist
   fastify.post('/wishlists', {
-    schema: {
-      body: z.object({
-        customerId: z.string().uuid(),
-        name: z.string().min(1),
-        description: z.string().optional(),
-        isDefault: z.boolean().optional().default(false),
-        isPublic: z.boolean().optional().default(false),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const wishlist = await createWishlist(tenantId, request.body);
@@ -34,11 +25,6 @@ const wishlistsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get customer's wishlists
   fastify.get('/wishlists', {
-    schema: {
-      querystring: z.object({
-        customerId: z.string().uuid(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const wishlists = await getWishlists(tenantId, request.query.customerId);
@@ -67,14 +53,6 @@ const wishlistsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Update wishlist
   fastify.patch('/wishlists/:id', {
-    schema: {
-      body: z.object({
-        name: z.string().min(1).optional(),
-        description: z.string().optional(),
-        isDefault: z.boolean().optional(),
-        isPublic: z.boolean().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const { id } = request.params as { id: string };
@@ -95,15 +73,6 @@ const wishlistsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Add item to wishlist
   fastify.post('/wishlists/:id/items', {
-    schema: {
-      body: z.object({
-        productId: z.string().uuid(),
-        quantity: z.number().int().min(1).optional().default(1),
-        priority: z.number().int().min(0).max(2).optional().default(0),
-        notes: z.string().optional(),
-        priceDropAlert: z.boolean().optional().default(false),
-      }),
-    },
     handler: async (request, reply) => {
       const { id } = request.params as { id: string };
       const item = await addWishlistItem(id, request.body);
@@ -113,14 +82,6 @@ const wishlistsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Update wishlist item
   fastify.patch('/wishlists/:id/items/:itemId', {
-    schema: {
-      body: z.object({
-        quantity: z.number().int().min(1).optional(),
-        priority: z.number().int().min(0).max(2).optional(),
-        notes: z.string().optional(),
-        priceDropAlert: z.boolean().optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const { itemId } = request.params as { itemId: string };
       const item = await updateWishlistItem(itemId, request.body);

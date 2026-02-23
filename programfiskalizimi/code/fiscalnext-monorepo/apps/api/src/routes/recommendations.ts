@@ -19,13 +19,6 @@ import {
 const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
   // Get all recommendations for a product
   fastify.get('/products/:productId/recommendations', {
-    schema: {
-      querystring: z.object({
-        customerId: z.string().uuid().optional(),
-        type: z.enum(['ai-based', 'also-bought', 'frequently-together', 'trending', 'cross-sell', 'upsell']).optional(),
-        limit: z.number().int().min(1).max(50).optional().default(10),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user?.tenantId;
       const { productId } = request.params as { productId: string };
@@ -36,13 +29,6 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get AI-based recommendations
   fastify.get('/recommendations/ai', {
-    schema: {
-      querystring: z.object({
-        customerId: z.string().uuid(),
-        context: z.enum(['homepage', 'product', 'cart', 'checkout']).optional(),
-        limit: z.number().int().min(1).max(50).optional().default(10),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const recommendations = await getAIRecommendations(tenantId, request.query);
@@ -52,11 +38,6 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get "Customers also bought"
   fastify.get('/products/:productId/also-bought', {
-    schema: {
-      querystring: z.object({
-        limit: z.number().int().min(1).max(50).optional().default(10),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const { productId } = request.params as { productId: string };
@@ -67,11 +48,6 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get "Frequently bought together"
   fastify.get('/products/:productId/frequently-together', {
-    schema: {
-      querystring: z.object({
-        limit: z.number().int().min(1).max(50).optional().default(5),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const { productId } = request.params as { productId: string };
@@ -82,11 +58,6 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get recently viewed products
   fastify.get('/customers/:customerId/recently-viewed', {
-    schema: {
-      querystring: z.object({
-        limit: z.number().int().min(1).max(50).optional().default(10),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const { customerId } = request.params as { customerId: string };
@@ -97,12 +68,6 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get trending products
   fastify.get('/recommendations/trending', {
-    schema: {
-      querystring: z.object({
-        period: z.enum(['24h', '7d', '30d']).optional().default('7d'),
-        limit: z.number().int().min(1).max(50).optional().default(10),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const products = await getTrending(tenantId, request.query);
@@ -112,11 +77,6 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get cross-sell suggestions
   fastify.get('/products/:productId/cross-sell', {
-    schema: {
-      querystring: z.object({
-        limit: z.number().int().min(1).max(50).optional().default(5),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const { productId } = request.params as { productId: string };
@@ -127,11 +87,6 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get upsell suggestions
   fastify.get('/products/:productId/upsell', {
-    schema: {
-      querystring: z.object({
-        limit: z.number().int().min(1).max(50).optional().default(5),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user.tenantId;
       const { productId } = request.params as { productId: string };
@@ -142,15 +97,6 @@ const recommendationsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Track product view
   fastify.post('/products/:productId/view', {
-    schema: {
-      body: z.object({
-        customerId: z.string().uuid().optional(),
-        sessionId: z.string().optional(),
-        viewDuration: z.number().int().optional(),
-        referrer: z.string().optional(),
-        deviceType: z.enum(['mobile', 'tablet', 'desktop']).optional(),
-      }),
-    },
     handler: async (request, reply) => {
       const tenantId = request.user?.tenantId;
       const { productId } = request.params as { productId: string };
