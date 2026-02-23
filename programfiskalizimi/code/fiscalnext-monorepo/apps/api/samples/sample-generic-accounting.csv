@@ -1,0 +1,7 @@
+Date,TransactionType,InvoiceNumber,CustomerName,CustomerCode,Subtotal,Tax,Discount,Total,PaymentMethod,Status,Notes
+2026-02-23,Sale,RCP-001,John Doe,CUST-001,550.00,100.00,0,650.00,cash,completed,Morning rush sale
+2026-02-23,Sale,RCP-002,Jane Smith,CUST-002,333.33,66.67,0,400.00,card,completed,Lunch special
+2026-02-23,Sale,RCP-003,Acme Corp,CUST-003,1041.67,208.33,0,1250.00,card,completed,Corporate order
+2026-02-23,Sale,RCP-004,Cash Sale,,416.67,83.33,0,500.00,cash,completed,Walk-in customer
+2026-02-23,Sale,RCP-005,John Doe,CUST-001,291.67,58.33,50,300.00,cash,completed,Loyalty discount applied
+2026-02-23,Sale,RCP-006,Jane Smith,CUST-002,208.33,41.67,0,250.00,card,completed,Afternoon coffee

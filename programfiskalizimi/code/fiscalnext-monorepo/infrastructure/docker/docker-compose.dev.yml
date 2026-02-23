@@ -1,0 +1,184 @@
+# FiscalNext - Complete Development Environment
+# Created: 2026-02-23 by DevOps (Max)
+# Usage: docker-compose -f infrastructure/docker/docker-compose.dev.yml up
+
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: fiscalnext-postgres
+    environment:
+      POSTGRES_DB: fiscalnext_dev
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d fiscalnext_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fiscalnext-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: fiscalnext-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fiscalnext-network
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fiscalnext-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - fiscalnext-network
+
+  # API Backend (Fastify)
+  api:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: fiscalnext-api
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://admin:admin123@postgres:5432/fiscalnext_dev?schema=public
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3001
+      LOG_LEVEL: debug
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../../apps/api:/app/apps/api
+      - ../../packages:/app/packages
+      - /app/node_modules
+      - /app/apps/api/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    command: npm run dev --workspace=@fiscalnext/api
+    networks:
+      - fiscalnext-network
+    restart: unless-stopped
+
+  # Web Admin Frontend
+  web-admin:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.web
+      args:
+        APP_NAME: web-admin
+    container_name: fiscalnext-web-admin
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../apps/web-admin:/app/apps/web-admin
+      - ../../packages:/app/packages
+      - /app/node_modules
+      - /app/apps/web-admin/node_modules
+    depends_on:
+      - api
+    command: npm run dev --workspace=@fiscalnext/web-admin
+    networks:
+      - fiscalnext-network
+    restart: unless-stopped
+
+  # POS Frontend
+  web-pos:
+    build:
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.web
+      args:
+        APP_NAME: web-pos
+    container_name: fiscalnext-web-pos
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../../apps/web-pos:/app/apps/web-pos
+      - ../../packages:/app/packages
+      - /app/node_modules
+      - /app/apps/web-pos/node_modules
+    depends_on:
+      - api
+    command: npm run dev --workspace=@fiscalnext/web-pos
+    networks:
+      - fiscalnext-network
+    restart: unless-stopped
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: fiscalnext-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@fiscalnext.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - fiscalnext-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  fiscalnext-network:
+    driver: bridge
+    name: fiscalnext-network

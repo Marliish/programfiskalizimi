@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: tafa-vault
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_ADDR: 'http://0.0.0.0:8200'
+      VAULT_API_ADDR: 'http://0.0.0.0:8200'
+      VAULT_ADDRESS: 'http://0.0.0.0:8200'
+    volumes:
+      - ./vault-data:/vault/file
+      - ./vault-config:/vault/config
+      - ./vault-logs:/vault/logs
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    networks:
+      - tafa-network
+    command: server
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Vault UI (optional, for development)
+  vault-ui:
+    image: djenriquez/vault-ui:latest
+    container_name: tafa-vault-ui
+    restart: unless-stopped
+    environment:
+      VAULT_URL_DEFAULT: http://vault:8200
+      VAULT_AUTH_DEFAULT: TOKEN
+    ports:
+      - "${VAULT_UI_PORT:-8000}:8000"
+    networks:
+      - tafa-network
+    depends_on:
+      - vault
+    profiles:
+      - dev
+      - staging
+
+networks:
+  tafa-network:
+    external: true
+    name: infrastructure_tafa-network
+
+volumes:
+  vault-data:
+    driver: local

@@ -1,0 +1,170 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Primary Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: tafa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-tafa_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-tafa_production}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      # Performance tuning
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+      POSTGRES_WORK_MEM: 4MB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/db-init:/docker-entrypoint-initdb.d
+      - ./backups:/backups
+      - ./logs/postgres:/var/log/postgresql
+    ports:
+      - "${DB_PORT:-5434}:5432"
+    networks:
+      - tafa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-tafa_admin} -d ${DB_NAME:-tafa_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_worker_processes=4
+      -c max_parallel_workers_per_gather=2
+      -c max_parallel_workers=4
+      -c max_parallel_maintenance_workers=2
+      -c log_destination=stderr
+      -c logging_collector=on
+      -c log_directory=/var/log/postgresql
+      -c log_filename=postgresql-%Y-%m-%d_%H%M%S.log
+      -c log_rotation_age=1d
+      -c log_rotation_size=100MB
+      -c log_min_duration_statement=1000
+      -c log_checkpoints=on
+      -c log_connections=on
+      -c log_disconnections=on
+      -c log_lock_waits=on
+
+  # PostgreSQL Replica (for read scaling)
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: tafa-postgres-replica
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-tafa_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGUSER: ${DB_USER:-tafa_admin}
+      POSTGRES_PRIMARY_HOST: postgres
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_REPLICA_PORT:-5435}:5432"
+    networks:
+      - tafa-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: |
+      bash -c "
+      until pg_basebackup -h postgres -D /var/lib/postgresql/data -U ${DB_USER:-tafa_admin} -Fp -Xs -P -R
+      do
+        echo 'Waiting for primary to be ready...'
+        sleep 1s
+      done
+      postgres
+      "
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: tafa-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    networks:
+      - tafa-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # PgAdmin for database management (development/staging only)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tafa-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@tafa.al}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'True'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - tafa-network
+    depends_on:
+      - postgres
+    profiles:
+      - dev
+      - staging
+
+  # Automated backup service
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local:16-alpine
+    container_name: tafa-postgres-backup
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${DB_NAME:-tafa_production}
+      POSTGRES_USER: ${DB_USER:-tafa_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_EXTRA_OPTS: -Z6 --schema=public --blobs
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      HEALTHCHECK_PORT: 8080
+    volumes:
+      - ./backups:/backups
+    networks:
+      - tafa-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_replica_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  tafa-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

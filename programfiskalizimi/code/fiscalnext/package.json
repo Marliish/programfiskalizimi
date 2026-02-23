@@ -1,0 +1,61 @@
+{
+  "name": "fiscalnext",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Modern fiscalization platform for businesses in Albania and Kosovo",
+  "keywords": [
+    "pos",
+    "fiscalization",
+    "albania",
+    "kosovo",
+    "e-invoice",
+    "inventory"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fiscalnext/fiscalnext.git"
+  },
+  "license": "MIT",
+  "author": "FiscalNext Team",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:admin": "turbo run dev --filter=web-admin",
+    "dev:pos": "turbo run dev --filter=web-pos",
+    "dev:api": "turbo run dev --filter=api",
+    "build": "turbo run build",
+    "build:admin": "turbo run build --filter=web-admin",
+    "build:pos": "turbo run build --filter=web-pos",
+    "build:api": "turbo run build --filter=api",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "turbo run db:generate --filter=@fiscalnext/database",
+    "db:migrate": "turbo run db:migrate --filter=@fiscalnext/database",
+    "db:push": "turbo run db:push --filter=@fiscalnext/database",
+    "db:studio": "turbo run db:studio --filter=@fiscalnext/database",
+    "db:seed": "turbo run db:seed --filter=@fiscalnext/database",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "eslint": "^8.55.0",
+    "eslint-config-next": "^14.0.4",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.1.1",
+    "turbo": "^1.11.3",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.2.4"
+}

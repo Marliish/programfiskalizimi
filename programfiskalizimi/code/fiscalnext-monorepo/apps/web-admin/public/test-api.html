@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+        pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>FiscalNext API Connection Test</h1>
+    
+    <div>
+        <h2>Test 1: Health Check</h2>
+        <button onclick="testHealth()">Test Backend Health</button>
+        <pre id="health-result">Click button to test...</pre>
+    </div>
+    
+    <div>
+        <h2>Test 2: Registration</h2>
+        <button onclick="testRegister()">Test Registration</button>
+        <pre id="register-result">Click button to test...</pre>
+    </div>
+    
+    <div>
+        <h2>Test 3: Login</h2>
+        <button onclick="testLogin()">Test Login</button>
+        <pre id="login-result">Click button to test...</pre>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        let testEmail = `test${Date.now()}@example.com`;
+        let testToken = null;
+        
+        async function testHealth() {
+            const result = document.getElementById('health-result');
+            result.textContent = 'Testing...';
+            
+            try {
+                const response = await axios.get(`${API_BASE}/health`);
+                result.className = 'success';
+                result.textContent = '✅ SUCCESS!\n\n' + JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR!\n\n' + (error.response?.data || error.message);
+            }
+        }
+        
+        async function testRegister() {
+            const result = document.getElementById('register-result');
+            result.textContent = 'Testing...';
+            
+            testEmail = `test${Date.now()}@example.com`;
+            
+            try {
+                const response = await axios.post(`${API_BASE}/v1/auth/register`, {
+                    email: testEmail,
+                    password: 'Test1234',
+                    businessName: 'Test Business',
+                    firstName: 'John',
+                    lastName: 'Doe',
+                    country: 'AL'
+                });
+                
+                testToken = response.data.token;
+                result.className = 'success';
+                result.textContent = '✅ SUCCESS!\n\nEmail: ' + testEmail + '\n\n' + JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR!\n\n' + JSON.stringify(error.response?.data || error.message, null, 2);
+            }
+        }
+        
+        async function testLogin() {
+            const result = document.getElementById('login-result');
+            result.textContent = 'Testing...';
+            
+            if (!testEmail) {
+                result.className = 'error';
+                result.textContent = '❌ Please run Register test first!';
+                return;
+            }
+            
+            try {
+                const response = await axios.post(`${API_BASE}/v1/auth/login`, {
+                    email: testEmail,
+                    password: 'Test1234'
+                });
+                
+                result.className = 'success';
+                result.textContent = '✅ SUCCESS!\n\n' + JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR!\n\n' + JSON.stringify(error.response?.data || error.message, null, 2);
+            }
+        }
+    </script>
+</body>
+</html>

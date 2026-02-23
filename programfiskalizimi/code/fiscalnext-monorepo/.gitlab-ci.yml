@@ -1,0 +1,323 @@
+# FiscalNext - GitLab CI/CD Pipeline
+# Created by: Max (DevOps Engineer)
+# Date: 2026-02-23
+#
+# Pipeline Stages:
+# 1. Build - Compile and build Docker images
+# 2. Test - Run unit and integration tests
+# 3. Security - Security scanning and vulnerability checks
+# 4. Deploy - Deploy to staging/production
+# 5. Monitor - Post-deployment health checks
+
+stages:
+  - build
+  - test
+  - security
+  - deploy
+  - monitor
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_REGISTRY: registry.gitlab.com/fiscalnext
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+  POSTGRES_DB: fiscalnext_test
+  POSTGRES_USER: test
+  POSTGRES_PASSWORD: test123
+
+# Templates
+.docker-build-template: &docker-build-template
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  after_script:
+    - docker logout $CI_REGISTRY
+
+.node-template: &node-template
+  image: node:20-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+      - apps/*/node_modules/
+      - packages/*/node_modules/
+  before_script:
+    - npm ci
+
+# ============================================================================
+# BUILD STAGE
+# ============================================================================
+
+build:api:
+  <<: *docker-build-template
+  stage: build
+  script:
+    - docker build 
+      -t $DOCKER_REGISTRY/api:$IMAGE_TAG 
+      -t $DOCKER_REGISTRY/api:latest 
+      -f infrastructure/docker/Dockerfile.api 
+      --target production 
+      .
+    - docker push $DOCKER_REGISTRY/api:$IMAGE_TAG
+    - docker push $DOCKER_REGISTRY/api:latest
+  only:
+    changes:
+      - apps/api/**/*
+      - packages/**/*
+      - infrastructure/docker/Dockerfile.api
+  tags:
+    - docker
+
+build:web-admin:
+  <<: *docker-build-template
+  stage: build
+  script:
+    - docker build 
+      -t $DOCKER_REGISTRY/web-admin:$IMAGE_TAG 
+      -t $DOCKER_REGISTRY/web-admin:latest 
+      -f infrastructure/docker/Dockerfile.web 
+      --build-arg APP_NAME=web-admin 
+      --target production 
+      .
+    - docker push $DOCKER_REGISTRY/web-admin:$IMAGE_TAG
+    - docker push $DOCKER_REGISTRY/web-admin:latest
+  only:
+    changes:
+      - apps/web-admin/**/*
+      - packages/**/*
+      - infrastructure/docker/Dockerfile.web
+  tags:
+    - docker
+
+build:web-pos:
+  <<: *docker-build-template
+  stage: build
+  script:
+    - docker build 
+      -t $DOCKER_REGISTRY/web-pos:$IMAGE_TAG 
+      -t $DOCKER_REGISTRY/web-pos:latest 
+      -f infrastructure/docker/Dockerfile.web 
+      --build-arg APP_NAME=web-pos 
+      --target production 
+      .
+    - docker push $DOCKER_REGISTRY/web-pos:$IMAGE_TAG
+    - docker push $DOCKER_REGISTRY/web-pos:latest
+  only:
+    changes:
+      - apps/web-pos/**/*
+      - packages/**/*
+      - infrastructure/docker/Dockerfile.web
+  tags:
+    - docker
+
+# ============================================================================
+# TEST STAGE
+# ============================================================================
+
+test:unit:
+  <<: *node-template
+  stage: test
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+  variables:
+    DATABASE_URL: postgresql://test:test123@postgres:5432/fiscalnext_test
+    REDIS_URL: redis://redis:6379
+  script:
+    - npm run test -- --coverage
+  coverage: '/Statements\s*:\s*(\d+\.?\d*)%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+    paths:
+      - coverage/
+    expire_in: 1 week
+  tags:
+    - docker
+
+test:integration:
+  <<: *node-template
+  stage: test
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+    - rabbitmq:3-alpine
+  variables:
+    DATABASE_URL: postgresql://test:test123@postgres:5432/fiscalnext_test
+    REDIS_URL: redis://redis:6379
+    RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+  script:
+    - npm run test:integration
+  artifacts:
+    reports:
+      junit: test-results/integration/*.xml
+  tags:
+    - docker
+
+test:e2e:
+  <<: *node-template
+  stage: test
+  services:
+    - postgres:15-alpine
+    - redis:7-alpine
+  variables:
+    DATABASE_URL: postgresql://test:test123@postgres:5432/fiscalnext_test
+    REDIS_URL: redis://redis:6379
+  script:
+    - npm run test:e2e
+  only:
+    - main
+    - develop
+  tags:
+    - docker
+
+lint:
+  <<: *node-template
+  stage: test
+  script:
+    - npm run lint
+  allow_failure: true
+  tags:
+    - docker
+
+# ============================================================================
+# SECURITY STAGE
+# ============================================================================
+
+security:dependency-scan:
+  <<: *node-template
+  stage: security
+  script:
+    - npm audit --audit-level=moderate
+  allow_failure: true
+  tags:
+    - docker
+
+security:sast:
+  stage: security
+  image: returntocorp/semgrep
+  script:
+    - semgrep --config=auto --json -o semgrep-report.json .
+  artifacts:
+    reports:
+      sast: semgrep-report.json
+  allow_failure: true
+  tags:
+    - docker
+
+security:container-scan:
+  stage: security
+  image: aquasec/trivy:latest
+  script:
+    - trivy image --severity HIGH,CRITICAL $DOCKER_REGISTRY/api:$IMAGE_TAG
+    - trivy image --severity HIGH,CRITICAL $DOCKER_REGISTRY/web-admin:$IMAGE_TAG
+  allow_failure: true
+  tags:
+    - docker
+  needs:
+    - build:api
+    - build:web-admin
+
+# ============================================================================
+# DEPLOY STAGE
+# ============================================================================
+
+deploy:staging:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $STAGING_SERVER >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh $STAGING_USER@$STAGING_SERVER << EOF
+        cd /opt/fiscalnext
+        export IMAGE_TAG=$IMAGE_TAG
+        docker-compose -f infrastructure/docker/docker-compose.staging.yml pull
+        docker-compose -f infrastructure/docker/docker-compose.staging.yml up -d --force-recreate
+        docker-compose -f infrastructure/docker/docker-compose.staging.yml exec -T api npm run migrate:latest
+      EOF
+  environment:
+    name: staging
+    url: https://staging.fiscalnext.com
+    on_stop: stop:staging
+  only:
+    - develop
+  when: manual
+  tags:
+    - deployment
+
+deploy:production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $PRODUCTION_SERVER >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh $PRODUCTION_USER@$PRODUCTION_SERVER << EOF
+        cd /opt/fiscalnext
+        export IMAGE_TAG=$IMAGE_TAG
+        docker-compose -f infrastructure/docker/docker-compose.production.yml pull
+        docker-compose -f infrastructure/docker/docker-compose.production.yml up -d --force-recreate
+        docker-compose -f infrastructure/docker/docker-compose.production.yml exec -T api npm run migrate:latest
+      EOF
+  environment:
+    name: production
+    url: https://fiscalnext.com
+  only:
+    - main
+  when: manual
+  tags:
+    - deployment
+
+# ============================================================================
+# MONITOR STAGE
+# ============================================================================
+
+monitor:health-check:
+  stage: monitor
+  image: curlimages/curl:latest
+  script:
+    - sleep 30  # Wait for services to start
+    - curl -f https://staging.fiscalnext.com/api/health || exit 1
+    - curl -f https://admin.staging.fiscalnext.com || exit 1
+    - curl -f https://pos.staging.fiscalnext.com || exit 1
+  only:
+    - develop
+  needs:
+    - deploy:staging
+  tags:
+    - docker
+
+# ============================================================================
+# ROLLBACK & CLEANUP
+# ============================================================================
+
+stop:staging:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+  script:
+    - ssh $STAGING_USER@$STAGING_SERVER "cd /opt/fiscalnext && docker-compose -f infrastructure/docker/docker-compose.staging.yml down"
+  environment:
+    name: staging
+    action: stop
+  when: manual
+  tags:
+    - deployment

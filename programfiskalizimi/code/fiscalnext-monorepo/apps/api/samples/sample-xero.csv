@@ -1,0 +1,5 @@
+*ContactName,EmailAddress,POAddressLine1,POCity,*InvoiceNumber,Reference,*InvoiceDate,*DueDate,InventoryItemCode,*Description,*Quantity,*UnitAmount,Discount,*AccountCode,*TaxType,TaxAmount,TrackingName1,TrackingOption1,Currency
+John Doe,john@example.com,123 Main St,Tirana,INV-1001,RCP-001,23/02/2026,23/02/2026,,POS Sale,1,550.00,0,200,Tax on Sales,100.00,,,ALL
+Jane Smith,jane@example.com,456 Oak Ave,Durres,INV-1002,RCP-002,23/02/2026,23/02/2026,,POS Sale,1,333.33,0,200,Tax on Sales,66.67,,,ALL
+Acme Corp,contact@acme.com,789 Business Blvd,Tirana,INV-1003,RCP-003,23/02/2026,23/02/2026,,POS Sale,1,1041.67,0,200,Tax on Sales,208.33,,,ALL
+Cash Sale,,,,INV-1004,RCP-004,23/02/2026,23/02/2026,,POS Sale,1,416.67,0,200,Tax on Sales,83.33,,,ALL
