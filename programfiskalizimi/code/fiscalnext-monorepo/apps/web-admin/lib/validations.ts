@@ -71,14 +71,14 @@ export const productSchema = z.object({
   sku: z.string().min(3, 'SKU must be at least 3 characters'),
   barcode: z.string().optional(),
   description: z.string().optional(),
-  category: z.string().min(1, 'Category is required'),
-  price: z.number().min(0.01, 'Price must be greater than 0'),
+  categoryId: z.string().optional(), // Changed from 'category' and made optional
+  sellingPrice: z.number().min(0.01, 'Selling price must be greater than 0'), // Changed from 'price'
   costPrice: z.number().min(0, 'Cost price must be 0 or greater').optional(),
-  stock: z.number().int().min(0, 'Stock must be 0 or greater'),
-  lowStockThreshold: z.number().int().min(0).optional(),
   taxRate: z.number().min(0).max(100, 'Tax rate must be between 0 and 100'),
+  currency: z.enum(['ALL', 'EUR', 'USD']).optional(),
   unit: z.string().optional(),
   isActive: z.boolean(),
+  imageUrl: z.string().optional(),
 });
 
 export type ProductFormData = z.infer<typeof productSchema>;

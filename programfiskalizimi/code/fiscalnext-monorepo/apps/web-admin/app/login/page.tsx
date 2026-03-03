@@ -2,43 +2,41 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Input, Card } from '@/components/ui';
-import { loginSchema, type LoginFormData } from '@/lib/validations';
+import { Button, Card } from '@/components/ui';
 import { authApi } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/store/authStore';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const setAuth = useAuthStore((state) => state.setAuth);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
   
-  async function onSubmit(data: LoginFormData) {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setLoading(true);
     
     try {
-      const response = await authApi.login(data.email, data.password);
+      const response = await authApi.login(email, password);
       const { user, token, tenant } = response.data;
       
       setAuth(user, token, tenant);
       toast.success('Login successful!');
       router.push('/dashboard');
     } catch (err: any) {
+      console.error('Login error:', err);
       toast.error(err.response?.data?.error || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
   }
+
+  const useDemoCredentials = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword('password123');
+  };
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-blue-100 px-4">
@@ -50,23 +48,53 @@ export default function LoginPage() {
         
         <Card className="shadow-xl">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Welcome Back</h2>
+
+          {/* Demo Credentials */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm font-semibold text-blue-900 mb-2">📋 Demo Credentials</p>
+            <div className="space-y-2 text-xs">
+              <button
+                type="button"
+                onClick={() => useDemoCredentials('owner@demo.com')}
+                className="w-full text-left p-2 bg-white rounded hover:bg-blue-100 transition-colors"
+              >
+                <strong>Owner:</strong> owner@demo.com / password123
+              </button>
+              <button
+                type="button"
+                onClick={() => useDemoCredentials('manager@demo.com')}
+                className="w-full text-left p-2 bg-white rounded hover:bg-blue-100 transition-colors"
+              >
+                <strong>Manager:</strong> manager@demo.com / password123
+              </button>
+            </div>
+            <p className="text-xs text-blue-700 mt-2">Click to auto-fill credentials</p>
+          </div>
           
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              type="email"
-              label="Email Address"
-              placeholder="admin@example.com"
-              {...register('email')}
-              error={errors.email?.message}
-            />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
             
-            <Input
-              type="password"
-              label="Password"
-              placeholder="••••••••"
-              {...register('password')}
-              error={errors.password?.message}
-            />
+            <div>
+              <label className="block text-sm font-medium mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
             
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center">
@@ -84,6 +112,7 @@ export default function LoginPage() {
               size="lg"
               isLoading={loading}
               className="w-full"
+              disabled={loading}
             >
               Sign In
             </Button>

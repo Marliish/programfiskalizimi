@@ -5,7 +5,7 @@ import { Header } from './Header';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  title: string;
+  title?: string;
   subtitle?: string;
 }
 
@@ -14,7 +14,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
       <div className="ml-64">
-        <Header title={title} subtitle={subtitle} />
+        <Header title={title || ''} subtitle={subtitle} />
         <main className="p-6">
           {children}
         </main>

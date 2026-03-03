@@ -1,9 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui';
-import { FiSearch, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiX } from 'react-icons/fi';
+import { FiSearch, FiShoppingCart, FiTrash2, FiMinus, FiPlus, FiX, FiPackage } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/v1';
+
+interface Product {
+  id: string;
+  name: string;
+  sellingPrice: number;
+  sku: string;
+  categoryId?: string;
+  category?: { name: string };
+  stock?: number;
+  taxRate: number;
+  currency: string;
+}
 
 interface CartItem {
   id: string;
@@ -11,33 +26,113 @@ interface CartItem {
   price: number;
   quantity: number;
   sku: string;
+  taxRate: number;
+  stock: number;
+  currency: string;
+}
+
+interface SystemSettings {
+  taxRate: number;
+  currency: string;
 }
 
 export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<SystemSettings>({ taxRate: 20, currency: 'EUR' });
 
-  // Mock products
-  const products = [
-    { id: '1', name: 'Coffee', price: 2.50, sku: 'COF-001', category: 'Drinks' },
-    { id: '2', name: 'Sandwich', price: 5.00, sku: 'SAN-001', category: 'Food' },
-    { id: '3', name: 'Water', price: 1.50, sku: 'WAT-001', category: 'Drinks' },
-    { id: '4', name: 'Cake', price: 3.50, sku: 'CAK-001', category: 'Dessert' },
-    { id: '5', name: 'Tea', price: 2.00, sku: 'TEA-001', category: 'Drinks' },
-    { id: '6', name: 'Croissant', price: 2.80, sku: 'CRO-001', category: 'Food' },
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const addToCart = (product: typeof products[0]) => {
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth_token');
+    return { headers: { Authorization: `Bearer ${token}` } };
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Load settings
+      const settingsRes = await axios.get(`${API_URL}/settings`, getAuthHeaders());
+      if (settingsRes.data.success) {
+        setSettings({
+          taxRate: settingsRes.data.settings.system.taxRate || 20,
+          currency: settingsRes.data.settings.system.currency || 'EUR',
+        });
+      }
+
+      // Load products with stock
+      const productsRes = await axios.get(`${API_URL}/products?limit=1000`, getAuthHeaders());
+      if (productsRes.data.success) {
+        const productsData = productsRes.data.data || [];
+        
+        console.log('📦 Sample product from API:', productsData[0]);
+        
+        // Load inventory for stock levels
+        const inventoryRes = await axios.get(`${API_URL}/inventory`, getAuthHeaders());
+        const inventory = inventoryRes.data.inventory || [];
+        
+        // Merge stock data
+        const productsWithStock = productsData.map((p: any) => {
+          const stockData = inventory.find((inv: any) => inv.productId === p.id);
+          return {
+            ...p,
+            currency: p.currency || 'EUR', // Ensure currency is set
+            stock: stockData ? stockData.totalStock : 0,
+          };
+        });
+        
+        console.log('📦 Sample product after processing:', productsWithStock[0]);
+        
+        setProducts(productsWithStock);
+      }
+    } catch (error: any) {
+      console.error('Failed to load data:', error);
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: settings.currency,
+    }).format(amount);
+  };
+
+  const addToCart = (product: Product) => {
+    if (product.stock === 0) {
+      toast.error('Out of stock');
+      return;
+    }
+
     const existingItem = cart.find(item => item.id === product.id);
     
     if (existingItem) {
+      if (existingItem.quantity >= product.stock!) {
+        toast.error('Not enough stock');
+        return;
+      }
       setCart(cart.map(item => 
         item.id === product.id 
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
     } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+      setCart([...cart, { 
+        id: product.id,
+        name: product.name,
+        price: product.sellingPrice,
+        quantity: 1,
+        sku: product.sku,
+        taxRate: product.taxRate,
+        stock: product.stock || 0,
+        currency: product.currency || 'EUR',
+      }]);
     }
     
     toast.success(`${product.name} added to cart`);
@@ -50,7 +145,11 @@ export default function POSPage() {
   const updateQuantity = (id: string, delta: number) => {
     setCart(cart.map(item => {
       if (item.id === id) {
-        const newQuantity = Math.max(1, item.quantity + delta);
+        const newQuantity = Math.max(1, Math.min(item.stock, item.quantity + delta));
+        if (newQuantity > item.stock) {
+          toast.error('Not enough stock');
+          return item;
+        }
         return { ...item, quantity: newQuantity };
       }
       return item;
@@ -62,17 +161,72 @@ export default function POSPage() {
     toast.success('Cart cleared');
   };
 
-  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Group cart by currency
+  const cartByCurrency = cart.reduce((acc, item) => {
+    const curr = item.currency;
+    if (!acc[curr]) {
+      acc[curr] = { subtotal: 0, tax: 0, items: [] };
+    }
+    const itemSubtotal = item.price * item.quantity;
+    const itemTax = itemSubtotal * item.taxRate / 100;
+    acc[curr].subtotal += itemSubtotal;
+    acc[curr].tax += itemTax;
+    acc[curr].items.push(item);
+    return acc;
+  }, {} as Record<string, { subtotal: number; tax: number; items: CartItem[] }>);
+
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Cart is empty');
       return;
     }
-    toast.success('Processing payment...');
-    // TODO: Implement payment flow
+    
+    try {
+      // Calculate totals
+      const allSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const allTax = cart.reduce((sum, item) => sum + (item.price * item.quantity * item.taxRate / 100), 0);
+      const allTotal = allSubtotal + allTax;
+
+      const response = await axios.post(
+        `${API_URL}/pos/transactions`,
+        {
+          items: cart.map(item => ({
+            productId: item.id,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            taxRate: item.taxRate,
+            currency: item.currency,
+          })),
+          paymentMethod: 'cash',
+          subtotal: allSubtotal,
+          tax: allTax,
+          total: allTotal,
+          currencyBreakdown: Object.entries(cartByCurrency).map(([currency, data]) => ({
+            currency,
+            subtotal: data.subtotal,
+            tax: data.tax,
+            total: data.subtotal + data.tax,
+          })),
+        },
+        getAuthHeaders()
+      );
+
+      if (response.data.success) {
+        toast.success('Transaction completed!');
+        setCart([]);
+        loadData(); // Reload to update stock
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Transaction failed');
+    }
   };
+
+  const filteredProducts = products.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="h-screen flex bg-gray-50">
@@ -83,7 +237,7 @@ export default function POSPage() {
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-gray-900">Point of Sale</h1>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Cashier: Admin</span>
+              <span className="text-sm text-gray-500">Currency: {settings.currency}</span>
             </div>
           </div>
           
@@ -102,17 +256,16 @@ export default function POSPage() {
 
         {/* Products Grid */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products
-              .filter(p => 
-                p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                p.sku.toLowerCase().includes(searchQuery.toLowerCase())
-              )
-              .map((product) => (
+          {loading ? (
+            <div className="text-center py-12 text-gray-500">Loading products...</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredProducts.map((product) => (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="product-card text-left"
+                  disabled={product.stock === 0}
+                  className={`product-card text-left ${product.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex flex-col h-full justify-between">
                     <div>
@@ -120,15 +273,29 @@ export default function POSPage() {
                       <p className="text-sm text-gray-500 mt-1">{product.sku}</p>
                     </div>
                     <div className="mt-4">
-                      <p className="text-2xl font-bold text-primary-600">€{product.price.toFixed(2)}</p>
-                      <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
-                        {product.category}
-                      </span>
+                      <p className="text-2xl font-bold text-primary-600">
+                        {new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: product.currency || 'EUR',
+                        }).format(product.sellingPrice)}
+                      </p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                          {product.category?.name || 'General'}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                          product.stock === 0 ? 'text-red-600' : product.stock! < 10 ? 'text-orange-600' : 'text-green-600'
+                        }`}>
+                          <FiPackage className="w-3 h-3" />
+                          {product.stock}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </button>
               ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -166,7 +333,12 @@ export default function POSPage() {
                 <div key={item.id} className="cart-item">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                    <p className="text-sm text-gray-500">€{item.price.toFixed(2)} each</p>
+                    <p className="text-sm text-gray-500">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: item.currency,
+                      }).format(item.price)} each • Tax: {item.taxRate}%
+                    </p>
                   </div>
                   
                   <div className="flex items-center gap-3">
@@ -180,14 +352,20 @@ export default function POSPage() {
                       <span className="w-8 text-center font-semibold">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.id, 1)}
-                        className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded"
+                        disabled={item.quantity >= item.stock}
+                        className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded disabled:opacity-50"
                       >
                         <FiPlus className="w-4 h-4" />
                       </button>
                     </div>
                     
-                    <div className="text-right min-w-[60px]">
-                      <p className="font-bold text-gray-900">€{(item.price * item.quantity).toFixed(2)}</p>
+                    <div className="text-right min-w-[80px]">
+                      <p className="font-bold text-gray-900">
+                        {new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: item.currency,
+                        }).format(item.price * item.quantity)}
+                      </p>
                     </div>
                     
                     <button
@@ -203,31 +381,47 @@ export default function POSPage() {
           )}
         </div>
 
-        {/* Cart Footer - Totals & Checkout */}
-        <div className="border-t border-gray-200 p-6 bg-gray-50">
-          <div className="space-y-3 mb-6">
-            <div className="flex justify-between text-gray-600">
-              <span>Subtotal</span>
-              <span>€{total.toFixed(2)}</span>
+        {/* Cart Total - Grouped by Currency */}
+        <div className="border-t border-gray-200 p-6 space-y-4">
+          {Object.entries(cartByCurrency).map(([currency, data]) => (
+            <div key={currency} className="border-b border-gray-100 pb-3 last:border-0">
+              <div className="text-xs font-semibold text-gray-500 mb-2">{currency}</div>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Subtotal</span>
+                <span className="font-semibold">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: currency,
+                  }).format(data.subtotal)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Tax</span>
+                <span className="font-semibold">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: currency,
+                  }).format(data.tax)}
+                </span>
+              </div>
+              <div className="flex justify-between text-lg font-bold text-gray-900 mt-1">
+                <span>Total</span>
+                <span>
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: currency,
+                  }).format(data.subtotal + data.tax)}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between text-gray-600">
-              <span>Tax (20%)</span>
-              <span>€{(total * 0.2).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-2xl font-bold text-gray-900 pt-3 border-t border-gray-300">
-              <span>Total</span>
-              <span>€{(total * 1.2).toFixed(2)}</span>
-            </div>
-          </div>
-
+          ))}
+          
           <Button
-            variant="success"
-            size="xl"
             onClick={handleCheckout}
             disabled={cart.length === 0}
-            className="w-full"
+            className="w-full py-4 text-lg"
           >
-            Complete Payment
+            Complete Sale
           </Button>
         </div>
       </div>

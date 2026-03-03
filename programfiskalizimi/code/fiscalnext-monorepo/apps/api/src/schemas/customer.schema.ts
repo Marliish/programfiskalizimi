@@ -6,7 +6,7 @@ export const createCustomerSchema = z.object({
   lastName: z.string().min(1, 'Last name is required').optional(),
   email: z.string().email('Invalid email').optional(),
   phone: z.string().min(5, 'Phone number must be at least 5 characters').optional(),
-  birthday: z.string().datetime().optional(),
+  birthday: z.string().datetime({ message: 'Invalid date format' }).optional().nullable(),
 });
 
 export const updateCustomerSchema = z.object({

@@ -1,6 +1,7 @@
 // Category Schemas - Validation for category operations
 import { z } from 'zod';
 import { Type, Static } from '@sinclair/typebox';
+import { booleanFromString } from './helpers';
 
 // Create category schema
 export const createCategorySchema = z.object({
@@ -22,7 +23,7 @@ export const updateCategorySchema = z.object({
 export const listCategoriesQuerySchema = z.object({
   search: z.string().optional(),
   parentId: z.string().uuid().optional().nullable(),
-  isActive: z.boolean().optional(),
+  isActive: booleanFromString(),
 });
 
 // Types

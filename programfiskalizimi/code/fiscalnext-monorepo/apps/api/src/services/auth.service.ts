@@ -134,11 +134,35 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    // Extract roles and permissions
+    // Extract roles and permissions from UserRoles
     const roles = user.userRoles.map((ur) => ur.role.name);
-    const permissions = user.userRoles.flatMap((ur) =>
+    let permissions = user.userRoles.flatMap((ur) =>
       ur.role.rolePermissions.map((rp) => rp.permission.name)
     );
+
+    // Check if this user is linked to an employee (for employee-specific permissions)
+    const employee = await prisma.employee.findFirst({
+      where: { userId: user.id, tenantId: user.tenantId },
+    });
+
+    let employeeRole = null;
+    let isEmployee = false;
+
+    if (employee) {
+      isEmployee = true;
+      employeeRole = employee.employmentType || 'cashier';
+      
+      // Get employee-specific permissions
+      const employeePermissions = await prisma.employeePermission.findMany({
+        where: { employeeId: employee.id },
+      });
+      
+      // Employee permissions OVERRIDE user role permissions
+      // This ensures cashiers only have cashier permissions, not owner permissions
+      if (employeePermissions.length > 0) {
+        permissions = employeePermissions.map((ep) => ep.permission);
+      }
+    }
 
     return {
       user: {
@@ -148,6 +172,8 @@ export class AuthService {
         lastName: user.lastName,
         roles,
         permissions,
+        isEmployee,
+        employeeRole,
       },
       tenant: {
         id: user.tenant.id,

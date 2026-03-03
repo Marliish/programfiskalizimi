@@ -3,9 +3,123 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout';
 import { Button, Card, Modal, Input } from '@/components/ui';
-import { FiPlus, FiEdit2, FiTrash2, FiEye, FiClock, FiDollarSign, FiCalendar, FiUser, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiUser, FiSearch, FiShield } from 'react-icons/fi';
 import { employeesApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+
+// Role templates with permissions
+const ROLE_TEMPLATES = {
+  cashier: {
+    label: 'Cashier',
+    permissions: [
+      'sales:create',
+      'sales:edit',
+      'cash:open_shift',
+      'cash:close_shift',
+      'cash:reprint',
+      'inventory:view',
+    ],
+  },
+  waiter: {
+    label: 'Waiter',
+    permissions: [
+      'sales:create',
+      'sales:edit',
+      'sales:void',
+      'inventory:view',
+    ],
+  },
+  manager: {
+    label: 'Manager',
+    permissions: [
+      'sales:create',
+      'sales:edit',
+      'sales:void',
+      'sales:refund',
+      'sales:discount',
+      'sales:price_override',
+      'cash:open_shift',
+      'cash:close_shift',
+      'cash:in_out',
+      'cash:reprint',
+      'cash:reports',
+      'inventory:view',
+      'inventory:edit',
+      'inventory:adjust',
+      'inventory:cost_price',
+      'admin:products',
+      'admin:employees',
+      'admin:reports',
+    ],
+  },
+  admin: {
+    label: 'Admin',
+    permissions: [
+      'sales:create',
+      'sales:edit',
+      'sales:void',
+      'sales:refund',
+      'sales:discount',
+      'sales:price_override',
+      'cash:open_shift',
+      'cash:close_shift',
+      'cash:in_out',
+      'cash:reprint',
+      'cash:reports',
+      'inventory:view',
+      'inventory:edit',
+      'inventory:adjust',
+      'inventory:cost_price',
+      'admin:products',
+      'admin:employees',
+      'admin:settings',
+      'admin:reports',
+    ],
+  },
+};
+
+// Permission categories
+const PERMISSION_CATEGORIES = {
+  sales: {
+    label: 'Sales',
+    permissions: [
+      { id: 'sales:create', label: 'Create Sales' },
+      { id: 'sales:edit', label: 'Edit Sales' },
+      { id: 'sales:void', label: 'Void Sales' },
+      { id: 'sales:refund', label: 'Refund' },
+      { id: 'sales:discount', label: 'Apply Discounts' },
+      { id: 'sales:price_override', label: 'Override Prices' },
+    ],
+  },
+  cash: {
+    label: 'Cash/POS',
+    permissions: [
+      { id: 'cash:open_shift', label: 'Open Shift' },
+      { id: 'cash:close_shift', label: 'Close Shift' },
+      { id: 'cash:in_out', label: 'Cash In/Out' },
+      { id: 'cash:reprint', label: 'Reprint Receipts' },
+      { id: 'cash:reports', label: 'View Reports' },
+    ],
+  },
+  inventory: {
+    label: 'Inventory',
+    permissions: [
+      { id: 'inventory:view', label: 'View Inventory' },
+      { id: 'inventory:edit', label: 'Edit Products' },
+      { id: 'inventory:adjust', label: 'Adjust Stock' },
+      { id: 'inventory:cost_price', label: 'View Cost Price' },
+    ],
+  },
+  admin: {
+    label: 'Admin',
+    permissions: [
+      { id: 'admin:products', label: 'Manage Products' },
+      { id: 'admin:employees', label: 'Manage Employees' },
+      { id: 'admin:settings', label: 'System Settings' },
+      { id: 'admin:reports', label: 'Advanced Reports' },
+    ],
+  },
+};
 
 interface Employee {
   id: string;
@@ -15,12 +129,13 @@ interface Employee {
   phone?: string;
   position: string;
   department?: string;
-  hourlyRate?: number;
+  employeeNumber: string;
+  hireDate: string;
+  salary?: number;
   isActive: boolean;
-  startDate: Date;
-  totalHoursThisMonth: number;
-  shiftsThisMonth: number;
-  createdAt: Date;
+  role?: string;
+  permissions?: string[];
+  permissionCount?: number;
 }
 
 export default function EmployeesPage() {
@@ -28,36 +143,39 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    password: '',
     phone: '',
     position: '',
     department: '',
-    hourlyRate: '',
-    startDate: '',
+    employeeNumber: '',
+    hireDate: new Date().toISOString().split('T')[0],
+    salary: '',
+    role: 'cashier',
+    permissions: [] as string[],
   });
 
   // Fetch employees
   const fetchEmployees = async () => {
     setLoading(true);
     try {
-      const response = await employeesApi.getAll({
-        search: searchQuery || undefined,
-        isActive: true,
-      });
+      const response = await employeesApi.getAll({ isActive: true });
+      console.log('[DEBUG] Employees API response:', response.data);
 
       if (response.data.success) {
+        console.log('[DEBUG] Setting employees:', response.data.data);
         setEmployees(response.data.data || []);
+      } else {
+        console.error('[DEBUG] API returned success=false:', response.data);
       }
     } catch (error: any) {
       console.error('Failed to fetch employees:', error);
-      toast.error('Failed to load employees');
+      toast.error(error.response?.data?.error || 'Failed to load employees');
     } finally {
       setLoading(false);
     }
@@ -67,10 +185,6 @@ export default function EmployeesPage() {
     fetchEmployees();
   }, []);
 
-  const handleSearch = () => {
-    fetchEmployees();
-  };
-
   const openModal = (employee?: Employee) => {
     if (employee) {
       setEditingEmployee(employee);
@@ -78,11 +192,15 @@ export default function EmployeesPage() {
         firstName: employee.firstName || '',
         lastName: employee.lastName || '',
         email: employee.email || '',
+        password: '', // Don't show existing password
         phone: employee.phone || '',
         position: employee.position || '',
         department: employee.department || '',
-        hourlyRate: employee.hourlyRate?.toString() || '',
-        startDate: employee.startDate ? new Date(employee.startDate).toISOString().split('T')[0] : '',
+        employeeNumber: employee.employeeNumber || '',
+        hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().split('T')[0] : '',
+        salary: employee.salary?.toString() || '',
+        role: employee.role || 'cashier',
+        permissions: employee.permissions || [],
       });
     } else {
       setEditingEmployee(null);
@@ -90,11 +208,15 @@ export default function EmployeesPage() {
         firstName: '',
         lastName: '',
         email: '',
+        password: '',
         phone: '',
         position: '',
         department: '',
-        hourlyRate: '',
-        startDate: '',
+        employeeNumber: `EMP-${Date.now()}`,
+        hireDate: new Date().toISOString().split('T')[0],
+        salary: '',
+        role: 'cashier',
+        permissions: ROLE_TEMPLATES.cashier.permissions,
       });
     }
     setIsModalOpen(true);
@@ -105,12 +227,30 @@ export default function EmployeesPage() {
     setEditingEmployee(null);
   };
 
+  const handleRoleChange = (role: string) => {
+    const template = ROLE_TEMPLATES[role as keyof typeof ROLE_TEMPLATES];
+    setFormData({
+      ...formData,
+      role,
+      permissions: template ? template.permissions : [],
+    });
+  };
+
+  const togglePermission = (permission: string) => {
+    setFormData({
+      ...formData,
+      permissions: formData.permissions.includes(permission)
+        ? formData.permissions.filter(p => p !== permission)
+        : [...formData.permissions, permission],
+    });
+  };
+
   const handleSave = async () => {
     try {
       const payload = {
         ...formData,
-        hourlyRate: formData.hourlyRate ? parseFloat(formData.hourlyRate) : undefined,
-        startDate: formData.startDate ? new Date(formData.startDate) : undefined,
+        salary: formData.salary ? parseFloat(formData.salary) : 0,
+        hireDate: new Date(formData.hireDate),
       };
 
       if (editingEmployee) {
@@ -123,6 +263,7 @@ export default function EmployeesPage() {
       closeModal();
       fetchEmployees();
     } catch (error: any) {
+      console.error('Save error:', error);
       toast.error(error.response?.data?.error || 'Failed to save employee');
     }
   };
@@ -139,27 +280,16 @@ export default function EmployeesPage() {
     }
   };
 
-  const fetchEmployeeDetails = async (id: string) => {
-    try {
-      const response = await employeesApi.getById(id);
-      if (response.data.success) {
-        setSelectedEmployee(response.data.employee);
-        setIsDetailsModalOpen(true);
-      }
-    } catch (error: any) {
-      toast.error('Failed to load employee details');
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(amount);
-  };
+  const filteredEmployees = employees.filter(emp =>
+    searchQuery === '' ||
+    emp.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.position.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <DashboardLayout title="Employees" subtitle="Manage your team members">
+    <DashboardLayout title="Employees" subtitle="Manage team members and permissions">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -175,18 +305,16 @@ export default function EmployeesPage() {
               <FiSearch className="absolute left-3 top-3 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search by name, email, or position..."
+                placeholder="Search employees..."
                 value={searchQuery}
                 onChange={(e: any) => setSearchQuery(e.target.value)}
-                onKeyPress={(e: any) => e.key === 'Enter' && handleSearch()}
                 className="pl-10"
               />
             </div>
-            <Button onClick={handleSearch}>Search</Button>
           </div>
         </Card>
 
-        {/* Employee Stats */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <div className="flex items-center gap-4">
@@ -202,12 +330,12 @@ export default function EmployeesPage() {
           <Card>
             <div className="flex items-center gap-4">
               <div className="p-3 bg-green-100 rounded-lg">
-                <FiClock className="text-2xl text-green-600" />
+                <FiShield className="text-2xl text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Hours (This Month)</p>
+                <p className="text-sm text-gray-600">Admins</p>
                 <p className="text-2xl font-bold">
-                  {employees.reduce((sum, e) => sum + e.totalHoursThisMonth, 0)}
+                  {employees.filter(e => e.role === 'admin').length}
                 </p>
               </div>
             </div>
@@ -215,14 +343,12 @@ export default function EmployeesPage() {
           <Card>
             <div className="flex items-center gap-4">
               <div className="p-3 bg-purple-100 rounded-lg">
-                <FiDollarSign className="text-2xl text-purple-600" />
+                <FiShield className="text-2xl text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Avg. Hourly Rate</p>
+                <p className="text-sm text-gray-600">Managers</p>
                 <p className="text-2xl font-bold">
-                  {formatCurrency(
-                    employees.reduce((sum, e) => sum + (e.hourlyRate || 0), 0) / employees.length || 0
-                  )}
+                  {employees.filter(e => e.role === 'manager').length}
                 </p>
               </div>
             </div>
@@ -237,9 +363,8 @@ export default function EmployeesPage() {
                 <tr className="border-b">
                   <th className="text-left p-4 font-semibold">Name</th>
                   <th className="text-left p-4 font-semibold">Position</th>
-                  <th className="text-left p-4 font-semibold">Department</th>
-                  <th className="text-left p-4 font-semibold">Hourly Rate</th>
-                  <th className="text-left p-4 font-semibold">Hours (Month)</th>
+                  <th className="text-left p-4 font-semibold">Role</th>
+                  <th className="text-left p-4 font-semibold">Permissions</th>
                   <th className="text-left p-4 font-semibold">Status</th>
                   <th className="text-right p-4 font-semibold">Actions</th>
                 </tr>
@@ -247,18 +372,18 @@ export default function EmployeesPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="text-center p-8 text-gray-500">
+                    <td colSpan={6} className="text-center p-8 text-gray-500">
                       Loading employees...
                     </td>
                   </tr>
-                ) : employees.length === 0 ? (
+                ) : filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center p-8 text-gray-500">
-                      No employees found. Add your first employee to get started!
+                    <td colSpan={6} className="text-center p-8 text-gray-500">
+                      No employees found
                     </td>
                   </tr>
                 ) : (
-                  employees.map((employee) => (
+                  filteredEmployees.map((employee) => (
                     <tr key={employee.id} className="border-b hover:bg-gray-50">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
@@ -277,18 +402,12 @@ export default function EmployeesPage() {
                         <span className="font-medium">{employee.position}</span>
                       </td>
                       <td className="p-4">
-                        <span className="text-gray-600">{employee.department || 'N/A'}</span>
-                      </td>
-                      <td className="p-4">
-                        <span className="font-semibold text-green-600">
-                          {employee.hourlyRate ? formatCurrency(employee.hourlyRate) : 'N/A'}
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium capitalize">
+                          {employee.role || 'cashier'}
                         </span>
                       </td>
                       <td className="p-4">
-                        <div>
-                          <p className="font-medium">{employee.totalHoursThisMonth}h</p>
-                          <p className="text-sm text-gray-500">{employee.shiftsThisMonth} shifts</p>
-                        </div>
+                        <span className="text-gray-600">{employee.permissionCount || 0} permissions</span>
                       </td>
                       <td className="p-4">
                         <span
@@ -303,13 +422,6 @@ export default function EmployeesPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => fetchEmployeeDetails(employee.id)}
-                          >
-                            <FiEye />
-                          </Button>
                           <Button
                             size="sm"
                             variant="secondary"
@@ -339,154 +451,176 @@ export default function EmployeesPage() {
           isOpen={isModalOpen}
           onClose={closeModal}
           title={editingEmployee ? 'Edit Employee' : 'Add Employee'}
+          size="xl"
         >
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">First Name *</label>
-                <Input
-                  value={formData.firstName}
-                  onChange={(e: any) => setFormData({ ...formData, firstName: e.target.value })}
-                  placeholder="John"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Last Name *</label>
-                <Input
-                  value={formData.lastName}
-                  onChange={(e: any) => setFormData({ ...formData, lastName: e.target.value })}
-                  placeholder="Doe"
-                  required
-                />
-              </div>
-            </div>
+          <div className="space-y-6">
+            {/* Basic Info */}
             <div>
-              <label className="block text-sm font-medium mb-1">Email *</label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e: any) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="john@example.com"
-                required
-              />
+              <h3 className="font-semibold mb-3">Basic Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">First Name *</label>
+                  <Input
+                    value={formData.firstName}
+                    onChange={(e: any) => setFormData({ ...formData, firstName: e.target.value })}
+                    placeholder="John"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Last Name *</label>
+                  <Input
+                    value={formData.lastName}
+                    onChange={(e: any) => setFormData({ ...formData, lastName: e.target.value })}
+                    placeholder="Doe"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email *</label>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e: any) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="john@example.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Password {!editingEmployee && '*'}
+                  </label>
+                  <Input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e: any) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder={editingEmployee ? 'Leave blank to keep current' : 'Enter password'}
+                    required={!editingEmployee}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {editingEmployee ? 'Leave blank to keep current password' : 'Employee will use this to login'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Phone</label>
+                  <Input
+                    value={formData.phone}
+                    onChange={(e: any) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+355 XX XXX XXX"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Position *</label>
+                  <Input
+                    value={formData.position}
+                    onChange={(e: any) => setFormData({ ...formData, position: e.target.value })}
+                    placeholder="Cashier, Manager, etc."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Department</label>
+                  <Input
+                    value={formData.department}
+                    onChange={(e: any) => setFormData({ ...formData, department: e.target.value })}
+                    placeholder="Sales, Management, etc."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Employee Number *</label>
+                  <Input
+                    value={formData.employeeNumber}
+                    onChange={(e: any) => setFormData({ ...formData, employeeNumber: e.target.value })}
+                    placeholder="EMP-001"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Hire Date *</label>
+                  <Input
+                    type="date"
+                    value={formData.hireDate}
+                    onChange={(e: any) => setFormData({ ...formData, hireDate: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Monthly Salary (ALL)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.salary}
+                    onChange={(e: any) => setFormData({ ...formData, salary: e.target.value })}
+                    placeholder="50000"
+                  />
+                </div>
+              </div>
             </div>
+
+            {/* Role & Permissions */}
             <div>
-              <label className="block text-sm font-medium mb-1">Phone</label>
-              <Input
-                value={formData.phone}
-                onChange={(e: any) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+355 XX XXX XXX"
-              />
+              <h3 className="font-semibold mb-3">Role & Permissions</h3>
+              
+              {/* Role Templates */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Select Role Template</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {Object.entries(ROLE_TEMPLATES).map(([key, template]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleRoleChange(key)}
+                      className={`p-3 border rounded-lg text-sm font-medium transition-colors ${
+                        formData.role === key
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500'
+                      }`}
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Permission Checkboxes */}
+              <div className="space-y-4">
+                {Object.entries(PERMISSION_CATEGORIES).map(([categoryKey, category]) => (
+                  <div key={categoryKey} className="border rounded-lg p-4">
+                    <h4 className="font-semibold mb-2">{category.label}</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {category.permissions.map(permission => (
+                        <label key={permission.id} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.includes(permission.id)}
+                            onChange={() => togglePermission(permission.id)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm">{permission.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>{formData.permissions.length}</strong> permissions selected
+                </p>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Position *</label>
-                <Input
-                  value={formData.position}
-                  onChange={(e: any) => setFormData({ ...formData, position: e.target.value })}
-                  placeholder="Cashier, Manager, etc."
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Department</label>
-                <Input
-                  value={formData.department}
-                  onChange={(e: any) => setFormData({ ...formData, department: e.target.value })}
-                  placeholder="Sales, Management, etc."
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Hourly Rate (€)</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.hourlyRate}
-                  onChange={(e: any) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                  placeholder="5.50"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Start Date</label>
-                <Input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e: any) => setFormData({ ...formData, startDate: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end mt-6">
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end pt-4 border-t">
               <Button variant="secondary" onClick={closeModal}>
                 Cancel
               </Button>
-              <Button onClick={handleSave}>{editingEmployee ? 'Update' : 'Create'}</Button>
+              <Button onClick={handleSave}>
+                {editingEmployee ? 'Update Employee' : 'Create Employee'}
+              </Button>
             </div>
           </div>
-        </Modal>
-
-        {/* Employee Details Modal */}
-        <Modal
-          isOpen={isDetailsModalOpen}
-          onClose={() => setIsDetailsModalOpen(false)}
-          title="Employee Details"
-        >
-          {selectedEmployee && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-semibold">
-                  {selectedEmployee.firstName[0]}{selectedEmployee.lastName[0]}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">
-                    {selectedEmployee.firstName} {selectedEmployee.lastName}
-                  </h3>
-                  <p className="text-gray-500">{selectedEmployee.position}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Total Hours (Month)</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {selectedEmployee.totalHoursThisMonth}h
-                  </p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Shifts (Month)</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {selectedEmployee.shiftsThisMonth}
-                  </p>
-                </div>
-              </div>
-
-              {selectedEmployee.performance && (
-                <div>
-                  <h4 className="font-semibold mb-2">Performance</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Sales Count:</span>
-                      <span className="font-medium">{selectedEmployee.performance.salesCount}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Avg. Transaction:</span>
-                      <span className="font-medium">
-                        {formatCurrency(selectedEmployee.performance.avgTransactionValue)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Customer Rating:</span>
-                      <span className="font-medium">
-                        {selectedEmployee.performance.customerRating} / 5.0
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </Modal>
       </div>
     </DashboardLayout>

@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { QueryProvider } from '@/lib/providers/QueryProvider';
+import { AuthGuard } from '@/components/guards/AuthGuard';
 
 // ⚡ Optimized font loading with display swap
 const inter = Inter({ 
@@ -25,7 +26,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <QueryProvider>
-          {children}
+          <AuthGuard>
+            {children}
+          </AuthGuard>
           <Toaster 
             position="top-right"
             toastOptions={{

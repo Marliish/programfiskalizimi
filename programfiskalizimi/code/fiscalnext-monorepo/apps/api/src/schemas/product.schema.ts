@@ -10,6 +10,7 @@ export const createProductSchema = z.object({
   costPrice: z.number().positive('Cost price must be positive').optional(),
   sellingPrice: z.number().positive('Selling price must be positive'),
   taxRate: z.number().min(0).max(100, 'Tax rate must be between 0 and 100').default(20),
+  currency: z.enum(['ALL', 'EUR', 'USD']).default('EUR'),
   unit: z.string().default('pieces'),
   trackInventory: z.boolean().default(true),
   imageUrl: z.string().url('Invalid image URL').optional(),

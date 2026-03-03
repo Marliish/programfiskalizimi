@@ -142,16 +142,29 @@ export default function CustomersPage() {
   // Save customer
   const handleSave = async () => {
     try {
+      // Clean form data - remove empty strings and format birthday
+      const cleanData: any = {};
+      
+      if (formData.firstName?.trim()) cleanData.firstName = formData.firstName.trim();
+      if (formData.lastName?.trim()) cleanData.lastName = formData.lastName.trim();
+      if (formData.email?.trim()) cleanData.email = formData.email.trim();
+      if (formData.phone?.trim()) cleanData.phone = formData.phone.trim();
+      if (formData.birthday?.trim()) {
+        // Convert date to ISO datetime string (add time component)
+        cleanData.birthday = new Date(formData.birthday + 'T00:00:00.000Z').toISOString();
+      }
+
       if (editingCustomer) {
-        await customersApi.update(editingCustomer.id, formData);
+        await customersApi.update(editingCustomer.id, cleanData);
         toast.success('Customer updated successfully');
       } else {
-        await customersApi.create(formData);
+        await customersApi.create(cleanData);
         toast.success('Customer created successfully');
       }
       closeModal();
       fetchCustomers(currentPage);
     } catch (error: any) {
+      console.error('Customer save error:', error);
       toast.error(error.response?.data?.error || 'Failed to save customer');
     }
   };

@@ -133,7 +133,11 @@ export default function SettingsPage() {
         timeZone: systemSettings.timeZone,
       });
       if (response.data.success) {
-        toast.success('System settings updated successfully');
+        toast.success('System settings updated successfully! Refresh pages to see changes.');
+        // Force page reload after 1 second to apply new settings everywhere
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to update system settings');

@@ -22,6 +22,7 @@ interface Product {
   sku: string;
   sellingPrice: number;
   taxRate: number;
+  currency?: string;
   stock?: { quantity: number }[];
   imageUrl?: string;
   category?: { name: string };
@@ -34,11 +35,20 @@ interface CartItem {
   quantity: number;
   unitPrice: number;
   taxRate: number;
+  currency: string;
   subtotal: number;
   total: number;
 }
 
 type PaymentMethod = 'cash' | 'card' | 'mobile';
+
+// Format currency helper
+const formatCurrency = (amount: number, currency: string = 'ALL') => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(amount);
+};
 
 export default function POSPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -55,7 +65,7 @@ export default function POSPage() {
     try {
       const response = await productsApi.getAll({ search: searchQuery, limit: 50 });
       if (response.data.success) {
-        setProducts(response.data.products || []);
+        setProducts(response.data.data || []);
       }
     } catch (error: any) {
       console.error('Failed to fetch products:', error);
@@ -78,6 +88,9 @@ export default function POSPage() {
   // Add product to cart
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.productId === product.id);
+    
+    const price = Number(product.sellingPrice || 0);
+    const tax = Number(product.taxRate || 0);
 
     if (existingItem) {
       updateQuantity(product.id, existingItem.quantity + 1);
@@ -87,10 +100,11 @@ export default function POSPage() {
         productName: product.name,
         sku: product.sku,
         quantity: 1,
-        unitPrice: product.sellingPrice,
-        taxRate: product.taxRate,
-        subtotal: product.sellingPrice,
-        total: product.sellingPrice * (1 + product.taxRate / 100),
+        unitPrice: price,
+        taxRate: tax,
+        currency: product.currency || 'ALL',
+        subtotal: price,
+        total: price * (1 + tax / 100),
       };
       setCart([...cart, newItem]);
       toast.success(`${product.name} added to cart`);
@@ -128,7 +142,22 @@ export default function POSPage() {
     setCart([]);
   };
 
-  // Calculate totals
+  // Group cart by currency for totals
+  const cartByCurrency = cart.reduce((acc, item) => {
+    const curr = item.currency;
+    if (!acc[curr]) {
+      acc[curr] = { subtotal: 0, tax: 0 };
+    }
+    acc[curr].subtotal += item.subtotal;
+    acc[curr].tax += item.subtotal * (item.taxRate / 100);
+    return acc;
+  }, {} as Record<string, { subtotal: number; tax: number }>);
+
+  const currencies = Object.keys(cartByCurrency);
+  const primaryCurrency = currencies[0] || 'ALL';
+  const hasMixedCurrencies = currencies.length > 1;
+
+  // Calculate totals (for single currency carts)
   const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
   const taxAmount = cart.reduce(
     (sum, item) => sum + item.subtotal * (item.taxRate / 100),
@@ -220,7 +249,7 @@ export default function POSPage() {
                 (item) => `
               <div class="row">
                 <span>${item.productName} x${item.quantity}</span>
-                <span>€${item.total.toFixed(2)}</span>
+                <span>${formatCurrency(item.total, item.currency)}</span>
               </div>
             `
               )
@@ -228,16 +257,26 @@ export default function POSPage() {
           </div>
           
           <div class="line"></div>
-          <div class="row"><span>Subtotal:</span><span>€${subtotal.toFixed(2)}</span></div>
-          <div class="row"><span>Tax:</span><span>€${taxAmount.toFixed(2)}</span></div>
-          <div class="row bold"><span>TOTAL:</span><span>€${total.toFixed(2)}</span></div>
+          ${hasMixedCurrencies 
+            ? currencies.map(currency => `
+              <div class="row" style="font-size: 10px; color: #666;">${currency}</div>
+              <div class="row"><span>Subtotal:</span><span>${formatCurrency(cartByCurrency[currency].subtotal, currency)}</span></div>
+              <div class="row"><span>Tax:</span><span>${formatCurrency(cartByCurrency[currency].tax, currency)}</span></div>
+              <div class="row bold"><span>TOTAL:</span><span>${formatCurrency(cartByCurrency[currency].subtotal + cartByCurrency[currency].tax, currency)}</span></div>
+            `).join('<div class="line"></div>')
+            : `
+              <div class="row"><span>Subtotal:</span><span>${formatCurrency(subtotal, primaryCurrency)}</span></div>
+              <div class="row"><span>Tax:</span><span>${formatCurrency(taxAmount, primaryCurrency)}</span></div>
+              <div class="row bold"><span>TOTAL:</span><span>${formatCurrency(total, primaryCurrency)}</span></div>
+            `
+          }
           
           ${
-            paymentMethod === 'cash'
+            paymentMethod === 'cash' && !hasMixedCurrencies
               ? `
             <div class="line"></div>
-            <div class="row"><span>Cash Received:</span><span>€${parseFloat(amountReceived).toFixed(2)}</span></div>
-            <div class="row bold"><span>Change:</span><span>€${change.toFixed(2)}</span></div>
+            <div class="row"><span>Cash Received:</span><span>${formatCurrency(parseFloat(amountReceived), primaryCurrency)}</span></div>
+            <div class="row bold"><span>Change:</span><span>${formatCurrency(change, primaryCurrency)}</span></div>
           `
               : ''
           }
@@ -304,11 +343,11 @@ export default function POSPage() {
                     </div>
                     <div className="text-xs text-gray-500 mb-1">{product.category?.name}</div>
                     <div className="text-primary-600 font-bold">
-                      €{product.sellingPrice.toFixed(2)}
+                      {formatCurrency(Number(product.sellingPrice || 0), product.currency || 'ALL')}
                     </div>
                     {product.stock && product.stock[0] && (
                       <div className="text-xs text-gray-500 mt-1">
-                        Stock: {product.stock[0].quantity}
+                        Stock: {Number(product.stock[0].quantity || 0)}
                       </div>
                     )}
                   </button>
@@ -350,7 +389,7 @@ export default function POSPage() {
                         {item.productName}
                       </div>
                       <div className="text-xs text-gray-500">
-                        €{item.unitPrice.toFixed(2)} × {item.quantity}
+                        {formatCurrency(item.unitPrice, item.currency)} × {item.quantity}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -368,8 +407,8 @@ export default function POSPage() {
                         <FiPlus className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="w-16 text-right font-semibold">
-                      €{item.total.toFixed(2)}
+                    <div className="w-20 text-right font-semibold">
+                      {formatCurrency(item.total, item.currency)}
                     </div>
                     <button
                       onClick={() => removeFromCart(item.productId)}
@@ -388,20 +427,45 @@ export default function POSPage() {
               {/* Totals */}
               <Card>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Subtotal:</span>
-                    <span>€{subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Tax:</span>
-                    <span>€{taxAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="border-t pt-2">
-                    <div className="flex justify-between text-xl font-bold">
-                      <span>Total:</span>
-                      <span className="text-primary-600">€{total.toFixed(2)}</span>
-                    </div>
-                  </div>
+                  {hasMixedCurrencies ? (
+                    <>
+                      <div className="text-xs text-orange-600 mb-2">Mixed currencies in cart</div>
+                      {currencies.map((currency) => (
+                        <div key={currency} className="border-b border-gray-100 pb-2 mb-2 last:border-0">
+                          <div className="text-xs font-semibold text-gray-500 mb-1">{currency}</div>
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Subtotal:</span>
+                            <span>{formatCurrency(cartByCurrency[currency].subtotal, currency)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Tax:</span>
+                            <span>{formatCurrency(cartByCurrency[currency].tax, currency)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-gray-900">
+                            <span>Total:</span>
+                            <span>{formatCurrency(cartByCurrency[currency].subtotal + cartByCurrency[currency].tax, currency)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Subtotal:</span>
+                        <span>{formatCurrency(subtotal, primaryCurrency)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Tax:</span>
+                        <span>{formatCurrency(taxAmount, primaryCurrency)}</span>
+                      </div>
+                      <div className="border-t pt-2">
+                        <div className="flex justify-between text-xl font-bold">
+                          <span>Total:</span>
+                          <span className="text-primary-600">{formatCurrency(total, primaryCurrency)}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </Card>
 
@@ -454,11 +518,11 @@ export default function POSPage() {
                       onChange={(e) => setAmountReceived(e.target.value)}
                       placeholder="0.00"
                     />
-                    {change >= 0 && amountReceived && (
+                    {change >= 0 && amountReceived && !hasMixedCurrencies && (
                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
                         <div className="flex justify-between font-semibold text-green-700">
                           <span>Change:</span>
-                          <span>€{change.toFixed(2)}</span>
+                          <span>{formatCurrency(change, primaryCurrency)}</span>
                         </div>
                       </div>
                     )}

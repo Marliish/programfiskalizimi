@@ -112,7 +112,7 @@ const nextConfig = {
               style-src 'self' 'unsafe-inline';
               img-src 'self' data: https:;
               font-src 'self' data:;
-              connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'};
+              connect-src 'self' http://localhost:5000;
               frame-ancestors 'none';
             `.replace(/\s{2,}/g, ' ').trim(),
           },

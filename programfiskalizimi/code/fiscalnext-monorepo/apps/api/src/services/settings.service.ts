@@ -153,11 +153,15 @@ export class SettingsService {
       ...data,
     };
 
+    console.log('💾 Saving settings:', JSON.stringify(updatedSettings, null, 2));
+
     const updated = await prisma.tenant.update({
       where: { id: tenantId },
-      data: { settings: updatedSettings },
+      data: { settings: updatedSettings as any },
       select: { settings: true },
     });
+
+    console.log('✅ Saved settings:', JSON.stringify(updated.settings, null, 2));
 
     return updated.settings;
   }

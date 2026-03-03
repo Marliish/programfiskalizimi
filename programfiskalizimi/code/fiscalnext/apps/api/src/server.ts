@@ -20,7 +20,19 @@ import { tenantMiddleware } from './middleware/tenant';
 import { logger } from './utils/logger';
 
 const server = Fastify({
-  logger: logger,
+  logger: {
+    level: config.logLevel,
+    transport: config.nodeEnv === 'development'
+      ? {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'HH:MM:ss Z',
+            ignore: 'pid,hostname',
+          },
+        }
+      : undefined,
+  },
   requestIdHeader: 'x-request-id',
   requestIdLogLabel: 'reqId',
   disableRequestLogging: false,

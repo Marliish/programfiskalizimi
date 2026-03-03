@@ -126,6 +126,33 @@ export class POSService {
       return trans;
     });
 
+    // Auto-create fiscal receipt for the transaction
+    try {
+      const fiscalReceiptId = `fr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const iic = `IIC-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      
+      await prisma.fiscalReceipt.create({
+        data: {
+          id: fiscalReceiptId,
+          tenantId: data.tenantId,
+          transactionId: transaction.id,
+          country: 'AL',
+          iic,
+          submissionStatus: 'pending',
+          qrCode: `https://efiskalizimi-app.tatime.gov.al/invoice-check/#/verify?iic=${iic}`,
+        },
+      });
+
+      // Link fiscal receipt to transaction
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { fiscalReceiptId },
+      });
+    } catch (fiscalError) {
+      console.error('Failed to create fiscal receipt:', fiscalError);
+      // Don't fail the transaction if fiscal receipt creation fails
+    }
+
     return transaction;
   }
 
@@ -188,7 +215,17 @@ export class POSService {
       prisma.transaction.findMany({
         where,
         include: {
-          items: true,
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  currency: true,
+                },
+              },
+            },
+          },
           payments: true,
           customer: true,
           user: {

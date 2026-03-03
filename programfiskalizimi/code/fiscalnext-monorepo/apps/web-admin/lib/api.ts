@@ -15,7 +15,7 @@ export const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,8 +32,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('token');
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
+      localStorage.removeItem('tenant');
+      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -87,10 +89,10 @@ export const categoriesApi = {
 
 export const transactionsApi = {
   getAll: (params?: { page?: number; limit?: number; status?: string; fromDate?: string; toDate?: string }) =>
-    api.get('/transactions', { params }),
-  getById: (id: string) => api.get(`/transactions/${id}`),
-  create: (data: any) => api.post('/transactions', data),
-  void: (id: string) => api.post(`/transactions/${id}/void`),
+    api.get('/pos/transactions', { params }),
+  getById: (id: string) => api.get(`/pos/transactions/${id}`),
+  create: (data: any) => api.post('/pos/transactions', data),
+  void: (id: string) => api.post(`/pos/transactions/${id}/void`),
 };
 
 export const salesApi = {
@@ -184,15 +186,26 @@ export const auditLogsApi = {
     endDate?: string;
     page?: number;
     limit?: number;
-  }) => api.get('/audit-logs', { params }),
+  }) => {
+    // Transform params to match backend schema
+    const backendParams: Record<string, any> = {};
+    if (params?.userId) backendParams.userId = params.userId;
+    if (params?.action) backendParams.action = params.action;
+    if (params?.resourceType) backendParams.entityType = params.resourceType; // resourceType -> entityType
+    if (params?.startDate) backendParams.startDate = params.startDate;
+    if (params?.endDate) backendParams.endDate = params.endDate;
+    if (params?.limit) backendParams.limit = params.limit;
+    if (params?.page) backendParams.offset = ((params.page - 1) * (params.limit || 50)); // page -> offset
+    return api.get('/audit', { params: backendParams });
+  },
   getUserActivity: (userId: string, params?: { startDate?: string; endDate?: string }) =>
-    api.get(`/audit-logs/users/${userId}/activity`, { params }),
+    api.get(`/audit/user/${userId}`, { params }),
   getResourceHistory: (resourceType: string, resourceId: string) =>
-    api.get(`/audit-logs/resources/${resourceType}/${resourceId}/history`),
-  create: (data: any) => api.post('/audit-logs', data),
+    api.get(`/audit/${resourceType}/${resourceId}`),
+  create: (data: any) => api.post('/audit', data),
   export: (data?: { userId?: string; startDate?: string; endDate?: string; format?: 'csv' | 'json' }) =>
-    api.post('/audit-logs/export', data),
+    api.post('/audit/export', data),
   getStats: (params?: { startDate?: string; endDate?: string }) =>
-    api.get('/audit-logs/stats', { params }),
-  search: (query: string) => api.get('/audit-logs/search', { params: { q: query } }),
+    api.get('/audit/summary', { params }),
+  search: (query: string) => api.get('/audit', { params: { q: query } }),
 };

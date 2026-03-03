@@ -1,51 +1,10 @@
-// Employee Management Routes
-// Created: 2026-02-23 - Day 6
+// Employee Management Routes - Clean REST API
+// Updated: 2026-02-27 - Simplified for new Prisma service
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { employeeService } from '../services/employee.service';
-import { auditService } from '../services/audit.service';
-import {
-  createEmployeeSchema,
-  updateEmployeeSchema,
-  clockInSchema,
-  clockOutSchema,
-  performanceQuerySchema,
-} from '../schemas/employee.schema';
-import { validateRequest } from '../middleware/validate';
 
 export async function employeeRoutes(server: FastifyInstance) {
-  // Create employee
-  server.post(
-    '/employees',
-    {
-      preHandler: [server.authenticate as any],
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const tenantId = (request.user as any).tenantId;
-        const userId = (request.user as any).userId;
-
-        const data = validateRequest(createEmployeeSchema, request.body);
-        const employee = await employeeService.createEmployee(tenantId, data);
-
-        // Audit log
-        await auditService.logCreate(tenantId, userId, 'employee', 
-          Array.isArray(employee) && employee[0] ? employee[0].id : null, 
-          employee, request);
-
-        reply.code(201).send({
-          success: true,
-          data: Array.isArray(employee) && employee[0] ? employee[0] : employee,
-        });
-      } catch (error: any) {
-        reply.code(400).send({
-          success: false,
-          error: error.message,
-        });
-      }
-    }
-  );
-
   // Get all employees
   server.get(
     '/employees',
@@ -55,21 +14,26 @@ export async function employeeRoutes(server: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = (request.user as any).tenantId;
-        const { includeInactive } = request.query as any;
+        const { isActive } = request.query as any;
+
+        console.log('[Employees GET] tenantId:', tenantId, 'isActive:', isActive);
 
         const employees = await employeeService.getEmployees(
           tenantId,
-          includeInactive === 'true'
+          isActive === undefined ? undefined : isActive === 'true'
         );
 
-        reply.send({
+        console.log('[Employees GET] Found', employees.length, 'employees');
+
+        return reply.send({
           success: true,
           data: employees,
         });
       } catch (error: any) {
-        reply.code(400).send({
+        console.error('[Employees GET] Error:', error);
+        return reply.code(500).send({
           success: false,
-          error: error.message,
+          error: error.message || 'Failed to fetch employees',
         });
       }
     }
@@ -100,9 +64,37 @@ export async function employeeRoutes(server: FastifyInstance) {
           data: employee,
         });
       } catch (error: any) {
+        console.error('[Employees GET :id] Error:', error);
+        reply.code(500).send({
+          success: false,
+          error: error.message || 'Failed to fetch employee',
+        });
+      }
+    }
+  );
+
+  // Create employee
+  server.post(
+    '/employees',
+    {
+      preHandler: [server.authenticate as any],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const tenantId = (request.user as any).tenantId;
+        const data = request.body as any;
+
+        const employee = await employeeService.createEmployee(tenantId, data);
+
+        reply.code(201).send({
+          success: true,
+          data: employee,
+        });
+      } catch (error: any) {
+        console.error('[Employees POST] Error:', error);
         reply.code(400).send({
           success: false,
-          error: error.message,
+          error: error.message || 'Failed to create employee',
         });
       }
     }
@@ -117,24 +109,20 @@ export async function employeeRoutes(server: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = (request.user as any).tenantId;
-        const userId = (request.user as any).userId;
         const { id } = request.params as any;
+        const data = request.body as any;
 
-        const before = await employeeService.getEmployeeById(tenantId, id);
-        const data = validateRequest(updateEmployeeSchema, request.body);
         const employee = await employeeService.updateEmployee(tenantId, id, data);
-
-        // Audit log
-        await auditService.logUpdate(tenantId, userId, 'employee', id, before, employee, request);
 
         reply.send({
           success: true,
-          data: Array.isArray(employee) && employee[0] ? employee[0] : employee,
+          data: employee,
         });
       } catch (error: any) {
+        console.error('[Employees PUT] Error:', error);
         reply.code(400).send({
           success: false,
-          error: error.message,
+          error: error.message || 'Failed to update employee',
         });
       }
     }
@@ -149,93 +137,27 @@ export async function employeeRoutes(server: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = (request.user as any).tenantId;
-        const userId = (request.user as any).userId;
         const { id } = request.params as any;
 
-        const before = await employeeService.getEmployeeById(tenantId, id);
         const employee = await employeeService.deleteEmployee(tenantId, id);
 
-        // Audit log
-        await auditService.logDelete(tenantId, userId, 'employee', id, before, request);
-
         reply.send({
           success: true,
-          data: Array.isArray(employee) && employee[0] ? employee[0] : employee,
+          data: employee,
         });
       } catch (error: any) {
+        console.error('[Employees DELETE] Error:', error);
         reply.code(400).send({
           success: false,
-          error: error.message,
+          error: error.message || 'Failed to delete employee',
         });
       }
     }
   );
 
-  // Clock in
-  server.post(
-    '/employees/clock-in',
-    {
-      preHandler: [server.authenticate as any],
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const tenantId = (request.user as any).tenantId;
-        const userId = (request.user as any).userId;
-
-        const data = validateRequest(clockInSchema, request.body);
-        const shift = await employeeService.clockIn(tenantId, data);
-
-        // Audit log
-        await auditService.logCreate(tenantId, userId, 'shift', 
-          Array.isArray(shift) && shift[0] ? shift[0].id : null, 
-          shift, request);
-
-        reply.code(201).send({
-          success: true,
-          data: Array.isArray(shift) && shift[0] ? shift[0] : shift,
-        });
-      } catch (error: any) {
-        reply.code(400).send({
-          success: false,
-          error: error.message,
-        });
-      }
-    }
-  );
-
-  // Clock out
-  server.post(
-    '/employees/clock-out',
-    {
-      preHandler: [server.authenticate as any],
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const tenantId = (request.user as any).tenantId;
-        const userId = (request.user as any).userId;
-
-        const data = validateRequest(clockOutSchema, request.body);
-        const shift = await employeeService.clockOut(tenantId, data);
-
-        // Audit log
-        await auditService.logUpdate(tenantId, userId, 'shift', data.shiftId, {}, shift, request);
-
-        reply.send({
-          success: true,
-          data: Array.isArray(shift) && shift[0] ? shift[0] : shift,
-        });
-      } catch (error: any) {
-        reply.code(400).send({
-          success: false,
-          error: error.message,
-        });
-      }
-    }
-  );
-
-  // Get active shift
+  // Get employee permissions
   server.get(
-    '/employees/:id/active-shift',
+    '/employees/:id/permissions',
     {
       preHandler: [server.authenticate as any],
     },
@@ -244,50 +166,25 @@ export async function employeeRoutes(server: FastifyInstance) {
         const tenantId = (request.user as any).tenantId;
         const { id } = request.params as any;
 
-        const shift = await employeeService.getActiveShift(tenantId, id);
+        const permissions = await employeeService.getEmployeePermissions(tenantId, id);
 
         reply.send({
           success: true,
-          data: shift,
+          data: permissions,
         });
       } catch (error: any) {
-        reply.code(400).send({
+        console.error('[Employees GET :id/permissions] Error:', error);
+        reply.code(500).send({
           success: false,
-          error: error.message,
+          error: error.message || 'Failed to fetch permissions',
         });
       }
     }
   );
 
-  // Get employee performance
-  server.get(
-    '/employees/performance',
-    {
-      preHandler: [server.authenticate as any],
-    },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const tenantId = (request.user as any).tenantId;
-        const query = validateRequest(performanceQuerySchema, request.query);
-
-        const performance = await employeeService.getPerformance(tenantId, query);
-
-        reply.send({
-          success: true,
-          data: performance,
-        });
-      } catch (error: any) {
-        reply.code(400).send({
-          success: false,
-          error: error.message,
-        });
-      }
-    }
-  );
-
-  // Calculate commission
-  server.get(
-    '/employees/:id/commission',
+  // Check if employee has permission
+  server.post(
+    '/employees/:id/check-permission',
     {
       preHandler: [server.authenticate as any],
     },
@@ -295,30 +192,26 @@ export async function employeeRoutes(server: FastifyInstance) {
       try {
         const tenantId = (request.user as any).tenantId;
         const { id } = request.params as any;
-        const { startDate, endDate } = request.query as any;
+        const { permission } = request.body as any;
 
-        if (!startDate || !endDate) {
+        if (!permission) {
           return reply.code(400).send({
             success: false,
-            error: 'startDate and endDate are required',
+            error: 'Permission is required',
           });
         }
 
-        const commission = await employeeService.calculateCommission(
-          tenantId,
-          id,
-          startDate,
-          endDate
-        );
+        const hasPermission = await employeeService.hasPermission(tenantId, id, permission);
 
         reply.send({
           success: true,
-          data: commission,
+          data: { hasPermission },
         });
       } catch (error: any) {
-        reply.code(400).send({
+        console.error('[Employees POST :id/check-permission] Error:', error);
+        reply.code(500).send({
           success: false,
-          error: error.message,
+          error: error.message || 'Failed to check permission',
         });
       }
     }

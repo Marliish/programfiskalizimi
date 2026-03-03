@@ -4,7 +4,7 @@
 import { z } from 'zod';
 
 export const createEmployeeSchema = z.object({
-  employeeNumber: z.string().min(1).max(50),
+  employeeNumber: z.string().min(1).max(50).optional(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   email: z.string().email().optional(),
@@ -12,8 +12,6 @@ export const createEmployeeSchema = z.object({
   position: z.string().max(100).optional(),
   department: z.string().max(100).optional(),
   hireDate: z.string().optional(), // ISO date
-  hourlyRate: z.number().min(0).optional(),
-  commissionRate: z.number().min(0).max(100).optional(),
   userId: z.string().optional(),
 });
 

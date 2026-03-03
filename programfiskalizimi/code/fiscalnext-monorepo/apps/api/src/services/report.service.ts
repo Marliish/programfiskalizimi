@@ -28,7 +28,11 @@ export class ReportService {
     const transactions = await prisma.transaction.findMany({
       where,
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
         payments: true,
       },
       orderBy: { createdAt: 'asc' },
@@ -46,6 +50,9 @@ export class ReportService {
       totalDiscount: transactions.reduce((sum, t) => sum + Number(t.discountAmount), 0),
     };
 
+    // Get currency breakdown using raw SQL (most reliable)
+    const byCurrency = await this.getCurrencyBreakdown(params.tenantId, start, end);
+
     // Group by period
     const groupedData = this.groupTransactionsByPeriod(transactions, params.period || 'daily');
 
@@ -57,9 +64,50 @@ export class ReportService {
       startDate: start,
       endDate: end,
       summary,
+      byCurrency,
       data: groupedData,
       paymentBreakdown,
     };
+  }
+
+  /**
+   * Helper: Get currency breakdown using raw SQL
+   */
+  private async getCurrencyBreakdown(tenantId: string, startDate: Date, endDate: Date) {
+    const result = await prisma.$queryRaw<any[]>`
+      SELECT 
+        COALESCE(p.currency, 'EUR') as currency,
+        COALESCE(SUM(ti.unit_price * ti.quantity), 0)::float as "totalSales",
+        COUNT(DISTINCT t.id)::int as "totalTransactions",
+        COALESCE(SUM(ti.quantity), 0)::int as "totalItems"
+      FROM transactions t
+      JOIN transaction_items ti ON ti.transaction_id = t.id
+      JOIN products p ON p.id = ti.product_id
+      WHERE t.status = 'completed'
+        AND t.tenant_id = ${tenantId}
+        AND t.created_at >= ${startDate}
+        AND t.created_at <= ${endDate}
+      GROUP BY p.currency
+    `;
+
+    // Ensure all currencies are represented
+    const currencies = ['ALL', 'EUR', 'USD'];
+    const currencyMap = new Map(result.map(r => [r.currency, r]));
+    
+    return currencies.map(currency => {
+      const data = currencyMap.get(currency);
+      return {
+        currency,
+        totalSales: data?.totalSales || 0,
+        totalTransactions: data?.totalTransactions || 0,
+        totalItems: data?.totalItems || 0,
+        averageOrderValue: data?.totalTransactions > 0 
+          ? (data?.totalSales || 0) / data.totalTransactions 
+          : 0,
+        totalTax: 0,
+        totalDiscount: 0,
+      };
+    });
   }
 
   /**

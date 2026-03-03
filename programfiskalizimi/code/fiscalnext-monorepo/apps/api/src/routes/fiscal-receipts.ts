@@ -11,7 +11,7 @@ import { validate } from '../middleware/validate';
 export async function fiscalReceiptsRoutes(fastify: FastifyInstance) {
   // Create fiscal receipt for transaction
   fastify.post<{ Body: CreateFiscalReceiptInput }>('/receipts', {
-    preHandler: [fastify.authenticate, validate(createFiscalReceiptSchema, 'body')],
+    preHandler: [fastify.authenticate as any],
   }, async (request, reply) => {
     try {
       const decoded = request.user as any;
@@ -58,7 +58,7 @@ export async function fiscalReceiptsRoutes(fastify: FastifyInstance) {
 
   // List fiscal receipts
   fastify.get('/receipts', {
-    preHandler: [fastify.authenticate, validate(fiscalReceiptQuerySchema, 'query')],
+    preHandler: [fastify.authenticate as any],
   }, async (request, reply) => {
     try {
       const decoded = request.user as any;
@@ -66,11 +66,11 @@ export async function fiscalReceiptsRoutes(fastify: FastifyInstance) {
       
       const result = await fiscalService.listFiscalReceipts({
         tenantId: decoded.tenantId,
-        page: query.page || 1,
-        limit: query.limit || 20,
-        status: query.status,
-        fromDate: query.fromDate,
-        toDate: query.toDate,
+        page: parseInt(query.page) || 1,
+        limit: parseInt(query.limit) || 50,
+        status: query.status || undefined,
+        fromDate: query.fromDate || undefined,
+        toDate: query.toDate || undefined,
       });
 
       return {

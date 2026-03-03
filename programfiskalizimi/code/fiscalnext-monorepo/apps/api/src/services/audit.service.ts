@@ -13,17 +13,20 @@ const prisma = new PrismaClient();
 export class AuditService {
   // Create audit log
   async createLog(tenantId: string, userId: string | null, data: CreateAuditLogInput, request?: any) {
+    const { randomUUID } = await import('crypto');
+    const id = randomUUID();
     const ipAddress = request?.ip || request?.headers?.['x-forwarded-for'] || null;
     const userAgent = request?.headers?.['user-agent'] || null;
 
     return await prisma.$queryRawUnsafe(`
       INSERT INTO audit_logs (
-        tenant_id, user_id, action, entity_type, entity_id,
+        id, tenant_id, user_id, action, resource_type, resource_id,
         changes, ip_address, user_agent
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
       RETURNING *
     `,
+      id,
       tenantId,
       userId,
       data.action,
@@ -159,12 +162,12 @@ export class AuditService {
     }
 
     if (query.entityType) {
-      whereClause += ` AND al.entity_type = $${paramIndex++}`;
+      whereClause += ` AND al.resource_type = $${paramIndex++}`;
       params.push(query.entityType);
     }
 
     if (query.entityId) {
-      whereClause += ` AND al.entity_id = $${paramIndex++}`;
+      whereClause += ` AND al.resource_id = $${paramIndex++}`;
       params.push(query.entityId);
     }
 
@@ -197,7 +200,7 @@ export class AuditService {
 
     // Get total count
     const countResult = await prisma.$queryRawUnsafe(`
-      SELECT COUNT(*) as total
+      SELECT COUNT(*)::int as total
       FROM audit_logs al
       ${whereClause}
     `, ...params.slice(0, -2));
@@ -230,8 +233,8 @@ export class AuditService {
       FROM audit_logs al
       LEFT JOIN users u ON al.user_id = u.id
       WHERE al.tenant_id = $1 
-        AND al.entity_type = $2 
-        AND al.entity_id = $3
+        AND al.resource_type = $2 
+        AND al.resource_id = $3
       ORDER BY al.created_at DESC
       LIMIT $4
     `, tenantId, entityType, entityId, limit);
@@ -263,17 +266,18 @@ export class AuditService {
       params.push(endDate);
     }
 
-    return await prisma.$queryRawUnsafe(`
+    const result = await prisma.$queryRawUnsafe(`
       SELECT 
         action,
-        entity_type,
-        COUNT(*) as count,
-        COUNT(DISTINCT user_id) as unique_users
+        resource_type,
+        COUNT(*)::int as count,
+        COUNT(DISTINCT user_id)::int as unique_users
       FROM audit_logs
       ${whereClause}
-      GROUP BY action, entity_type
+      GROUP BY action, resource_type
       ORDER BY count DESC
     `, ...params);
+    return result;
   }
 
   // Export audit logs
@@ -303,8 +307,8 @@ export class AuditService {
         log.id,
         log.user_email || '',
         log.action,
-        log.entity_type,
-        log.entity_id || '',
+        log.resource_type,
+        log.resource_id || '',
         log.ip_address || '',
         log.user_agent || '',
         log.created_at,

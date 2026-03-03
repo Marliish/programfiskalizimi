@@ -47,7 +47,21 @@ export default function AuditLogsPage() {
       });
 
       if (response.data.success) {
-        setLogs(response.data.logs || []);
+        // Transform snake_case to camelCase
+        const rawLogs = response.data.data || [];
+        const transformedLogs = rawLogs.map((log: any) => ({
+          id: log.id,
+          userId: log.user_id,
+          userName: log.user_email || [log.user_first_name, log.user_last_name].filter(Boolean).join(' ') || null,
+          action: log.action,
+          resourceType: log.resource_type,
+          resourceId: log.resource_id,
+          changes: log.changes,
+          ipAddress: log.ip_address,
+          userAgent: log.user_agent,
+          createdAt: log.created_at,
+        }));
+        setLogs(transformedLogs);
       }
     } catch (error: any) {
       console.error('Failed to fetch audit logs:', error);
@@ -66,7 +80,22 @@ export default function AuditLogsPage() {
       });
 
       if (response.data.success) {
-        setStats(response.data.stats);
+        // Transform raw summary data into stats format
+        const rawData = response.data.data || [];
+        const byAction: Record<string, number> = {};
+        let totalActions = 0;
+        
+        rawData.forEach((row: any) => {
+          const count = Number(row.count) || 0;
+          totalActions += count;
+          byAction[row.action] = (byAction[row.action] || 0) + count;
+        });
+
+        setStats({
+          totalActions,
+          byAction,
+          topUsers: [], // Summary endpoint doesn't include user breakdown
+        });
       }
     } catch (error: any) {
       console.error('Failed to fetch stats:', error);
@@ -341,23 +370,23 @@ export default function AuditLogsPage() {
                       <td className="p-4">
                         <div>
                           <p className="font-medium">{log.userName || 'Unknown'}</p>
-                          <p className="text-xs text-gray-500">{log.userId.slice(0, 8)}</p>
+                          <p className="text-xs text-gray-500">{log.userId?.slice(0, 8) || 'N/A'}</p>
                         </div>
                       </td>
                       <td className="p-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${getActionColor(
-                            log.action
+                            log.action || ''
                           )}`}
                         >
-                          {log.action.toUpperCase()}
+                          {log.action?.toUpperCase() || 'UNKNOWN'}
                         </span>
                       </td>
                       <td className="p-4">
                         <div>
                           <p className="font-medium">{log.resourceType}</p>
                           {log.resourceId && (
-                            <p className="text-xs text-gray-500">{log.resourceId.slice(0, 12)}</p>
+                            <p className="text-xs text-gray-500">{log.resourceId?.slice(0, 12)}</p>
                           )}
                         </div>
                       </td>

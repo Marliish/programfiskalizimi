@@ -106,7 +106,23 @@ const server = Fastify({
 // Security & Middleware
 await server.register(helmet);
 await server.register(cors, {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: (origin, cb) => {
+    // In development, allow all localhost origins
+    if (process.env.NODE_ENV === 'development') {
+      if (!origin || origin.includes('localhost')) {
+        cb(null, true);
+        return;
+      }
+    }
+    // In production, check against allowed origins
+    const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',');
+    if (allowedOrigins.includes(origin)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Not allowed by CORS'), false);
+  },
+  credentials: true,
 });
 
 // JWT Authentication

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout';
 import { Button, Card } from '@/components/ui';
 import { FiDownload, FiTrendingUp, FiDollarSign, FiShoppingCart, FiPackage } from 'react-icons/fi';
-import { reportsApi } from '@/lib/api';
+import { reportsApi, transactionsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   LineChart,
@@ -22,6 +22,16 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+interface CurrencySummary {
+  currency: string;
+  totalSales: number;
+  totalTransactions: number;
+  totalItems: number;
+  averageOrderValue: number;
+  totalTax: number;
+  totalDiscount: number;
+}
+
 interface SalesReport {
   period: string;
   startDate: string;
@@ -34,6 +44,7 @@ interface SalesReport {
     totalTax: number;
     totalDiscount: number;
   };
+  byCurrency?: CurrencySummary[];
   data: Array<{
     period: string;
     revenue: number;
@@ -87,38 +98,126 @@ interface RevenueReport {
 export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    startDate: new Date().toISOString().split('T')[0], // Default to today
     endDate: new Date().toISOString().split('T')[0],
   });
+  
+  // Quick date presets
+  const setDatePreset = (preset: 'today' | 'week' | 'month' | 'year') => {
+    const end = new Date();
+    let start = new Date();
+    
+    switch (preset) {
+      case 'today':
+        start = new Date();
+        break;
+      case 'week':
+        start.setDate(end.getDate() - 7);
+        break;
+      case 'month':
+        start.setDate(end.getDate() - 30);
+        break;
+      case 'year':
+        start.setFullYear(end.getFullYear() - 1);
+        break;
+    }
+    
+    setDateRange({
+      startDate: start.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0],
+    });
+  };
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   
   const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
   const [productsReport, setProductsReport] = useState<ProductsReport | null>(null);
   const [revenueReport, setRevenueReport] = useState<RevenueReport | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('ALL');
+  
+  // Supported currencies
+  const currencies = [
+    { code: 'ALL', name: 'Lek', symbol: 'L' },
+    { code: 'EUR', name: 'Euro', symbol: '€' },
+    { code: 'USD', name: 'Dollar', symbol: '$' },
+  ];
 
   // Fetch all reports
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const [salesRes, productsRes, revenueRes] = await Promise.all([
+      // Fetch transactions directly (same as dashboard) for accurate currency data
+      const startOfDay = new Date(dateRange.startDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(dateRange.endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const [salesRes, productsRes, revenueRes, transactionsRes] = await Promise.all([
         reportsApi.sales({
-          startDate: new Date(dateRange.startDate).toISOString(),
-          endDate: new Date(dateRange.endDate).toISOString(),
+          startDate: startOfDay.toISOString(),
+          endDate: endOfDay.toISOString(),
           period,
         }),
         reportsApi.products({
-          startDate: new Date(dateRange.startDate).toISOString(),
-          endDate: new Date(dateRange.endDate).toISOString(),
+          startDate: startOfDay.toISOString(),
+          endDate: endOfDay.toISOString(),
           type: 'all',
         }),
         reportsApi.revenue({
-          startDate: new Date(dateRange.startDate).toISOString(),
-          endDate: new Date(dateRange.endDate).toISOString(),
+          startDate: startOfDay.toISOString(),
+          endDate: endOfDay.toISOString(),
           groupBy: 'day',
+        }),
+        transactionsApi.getAll({
+          fromDate: startOfDay.toISOString(),
+          toDate: endOfDay.toISOString(),
+          limit: 1000,
         }),
       ]);
 
-      if (salesRes.data.success) setSalesReport(salesRes.data.report);
+      // Calculate revenue by currency from transactions (same logic as dashboard)
+      const transactions = transactionsRes.data.data || [];
+      const revenueByCurrency: Record<string, { totalSales: number; totalTransactions: number; totalItems: number }> = {
+        'ALL': { totalSales: 0, totalTransactions: 0, totalItems: 0 },
+        'EUR': { totalSales: 0, totalTransactions: 0, totalItems: 0 },
+        'USD': { totalSales: 0, totalTransactions: 0, totalItems: 0 },
+      };
+      const txByCurrency: Record<string, Set<string>> = { 'ALL': new Set(), 'EUR': new Set(), 'USD': new Set() };
+
+      transactions.forEach((t: any) => {
+        if (t.status === 'completed' && t.items) {
+          t.items.forEach((item: any) => {
+            const currency = item.product?.currency || 'EUR';
+            if (!revenueByCurrency[currency]) {
+              revenueByCurrency[currency] = { totalSales: 0, totalTransactions: 0, totalItems: 0 };
+              txByCurrency[currency] = new Set();
+            }
+            const itemTotal = Number(item.unitPrice || 0) * Number(item.quantity || 0);
+            revenueByCurrency[currency].totalSales += itemTotal;
+            revenueByCurrency[currency].totalItems += Number(item.quantity || 1);
+            txByCurrency[currency].add(t.id);
+          });
+        }
+      });
+
+      // Set transaction counts
+      Object.keys(revenueByCurrency).forEach(currency => {
+        revenueByCurrency[currency].totalTransactions = txByCurrency[currency]?.size || 0;
+      });
+
+      // Build byCurrency array
+      const byCurrency = Object.entries(revenueByCurrency).map(([currency, data]) => ({
+        currency,
+        ...data,
+        averageOrderValue: data.totalTransactions > 0 ? data.totalSales / data.totalTransactions : 0,
+        totalTax: 0,
+        totalDiscount: 0,
+      }));
+
+      if (salesRes.data.success) {
+        const report = salesRes.data.report;
+        report.byCurrency = byCurrency; // Override with our calculated data
+        setSalesReport(report);
+      }
       if (productsRes.data.success) setProductsReport(productsRes.data.report);
       if (revenueRes.data.success) setRevenueReport(revenueRes.data.report);
     } catch (error: any) {
@@ -168,11 +267,11 @@ export default function ReportsPage() {
     }
   };
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
+  // Format currency (supports product-specific currency)
+  const formatCurrency = (amount: number, currency: string = 'ALL') => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'EUR',
+      currency,
     }).format(amount);
   };
 
@@ -185,6 +284,34 @@ export default function ReportsPage() {
 
         {/* Date Range Filter */}
         <Card>
+          {/* Quick Presets */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setDatePreset('today')}
+              className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setDatePreset('week')}
+              className="px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Last 7 Days
+            </button>
+            <button
+              onClick={() => setDatePreset('month')}
+              className="px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Last 30 Days
+            </button>
+            <button
+              onClick={() => setDatePreset('year')}
+              className="px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Last Year
+            </button>
+          </div>
+          
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium mb-2">Start Date</label>
@@ -222,54 +349,115 @@ export default function ReportsPage() {
           </div>
         </Card>
 
-        {/* Summary Cards */}
+        {/* Multi-Currency Summary Cards */}
         {salesReport && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <>
+            {/* Currency Tabs */}
+            <div className="flex gap-2 border-b pb-2">
+              {currencies.map((curr) => (
+                <button
+                  key={curr.code}
+                  onClick={() => setSelectedCurrency(curr.code)}
+                  className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                    selectedCurrency === curr.code
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {curr.symbol} {curr.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Summary Cards for Selected Currency */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <FiDollarSign className="text-2xl text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Total Sales ({selectedCurrency})</p>
+                    <p className="text-2xl font-bold">
+                      {formatCurrency(
+                        salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalSales || salesReport.summary.totalSales,
+                        selectedCurrency
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              <Card>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <FiShoppingCart className="text-2xl text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Transactions</p>
+                    <p className="text-2xl font-bold">
+                      {salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalTransactions || salesReport.summary.totalTransactions}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              <Card>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <FiTrendingUp className="text-2xl text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Avg Order Value</p>
+                    <p className="text-2xl font-bold">
+                      {formatCurrency(
+                        salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.averageOrderValue || salesReport.summary.averageOrderValue,
+                        selectedCurrency
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              <Card>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <FiPackage className="text-2xl text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Items Sold</p>
+                    <p className="text-2xl font-bold">
+                      {salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalItems || salesReport.summary.totalItems}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* All Currencies Overview */}
             <Card>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <FiDollarSign className="text-2xl text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Sales</p>
-                  <p className="text-2xl font-bold">{formatCurrency(salesReport.summary.totalSales)}</p>
-                </div>
+              <h2 className="text-lg font-semibold mb-4">Sales by Currency</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {currencies.map((curr) => {
+                  const currData = salesReport.byCurrency?.find(c => c.currency === curr.code);
+                  const total = currData?.totalSales || (curr.code === 'ALL' ? salesReport.summary.totalSales : 0);
+                  const transactions = currData?.totalTransactions || (curr.code === 'ALL' ? salesReport.summary.totalTransactions : 0);
+                  return (
+                    <div
+                      key={curr.code}
+                      className={`p-4 rounded-lg border-2 ${
+                        selectedCurrency === curr.code ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-2xl">{curr.symbol}</span>
+                        <span className="text-sm text-gray-500">{curr.name}</span>
+                      </div>
+                      <p className="text-xl font-bold">{formatCurrency(total, curr.code)}</p>
+                      <p className="text-sm text-gray-600">{transactions} transactions</p>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
-            <Card>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <FiShoppingCart className="text-2xl text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Transactions</p>
-                  <p className="text-2xl font-bold">{salesReport.summary.totalTransactions}</p>
-                </div>
-              </div>
-            </Card>
-            <Card>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <FiTrendingUp className="text-2xl text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Avg Order Value</p>
-                  <p className="text-2xl font-bold">{formatCurrency(salesReport.summary.averageOrderValue)}</p>
-                </div>
-              </div>
-            </Card>
-            <Card>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-orange-100 rounded-lg">
-                  <FiPackage className="text-2xl text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Items Sold</p>
-                  <p className="text-2xl font-bold">{salesReport.summary.totalItems}</p>
-                </div>
-              </div>
-            </Card>
-          </div>
+          </>
         )}
 
         {/* Revenue Trend Chart */}

@@ -22,12 +22,12 @@ export async function notificationRoutes(server: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = (request.user as any).tenantId;
-        const userId = (request.user as any).userId;
+        const userId = (request.user as any).userId || (request.user as any).sub;
         const { limit, unreadOnly } = request.query as any;
 
         const history = await notificationService.getHistory(
           tenantId,
-          userId,
+          undefined, // Don't filter by user - show all tenant notifications
           limit ? parseInt(limit) : 50
         );
 

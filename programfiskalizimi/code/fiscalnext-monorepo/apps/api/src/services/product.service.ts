@@ -15,6 +15,7 @@ export class ProductService {
     costPrice?: number;
     sellingPrice: number;
     taxRate?: number;
+    currency?: string;
     unit?: string;
     trackInventory?: boolean;
     imageUrl?: string;
@@ -60,6 +61,7 @@ export class ProductService {
     costPrice: number;
     sellingPrice: number;
     taxRate: number;
+    currency: string;
     unit: string;
     trackInventory: boolean;
     imageUrl: string;

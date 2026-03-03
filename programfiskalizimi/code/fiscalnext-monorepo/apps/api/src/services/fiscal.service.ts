@@ -181,7 +181,7 @@ export class FiscalService {
     };
 
     if (params.status) {
-      where.status = params.status;
+      where.submissionStatus = params.status;
     }
 
     if (params.fromDate || params.toDate) {
