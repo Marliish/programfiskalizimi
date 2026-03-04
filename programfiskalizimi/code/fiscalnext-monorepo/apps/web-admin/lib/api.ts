@@ -43,6 +43,37 @@ api.interceptors.response.use(
 );
 
 /**
+ * Generic API request helper (for backward compatibility)
+ */
+export const apiRequest = async (
+  urlOrMethod: string,
+  urlOrData?: string | any,
+  data?: any
+) => {
+  let method: string = 'GET';
+  let url: string;
+  let requestData: any;
+
+  // Check if first arg is a method or URL
+  if (['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(urlOrMethod.toUpperCase())) {
+    method = urlOrMethod.toUpperCase();
+    url = urlOrData as string;
+    requestData = data;
+  } else {
+    // First arg is URL, default to GET
+    url = urlOrMethod;
+    requestData = urlOrData;
+  }
+
+  const response = await api.request({
+    method,
+    url,
+    data: requestData,
+  });
+  return response.data;
+};
+
+/**
  * API endpoints
  */
 export const authApi = {

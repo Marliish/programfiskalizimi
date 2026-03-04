@@ -4,6 +4,8 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { QueryProvider } from '@/lib/providers/QueryProvider';
 import { AuthGuard } from '@/components/guards/AuthGuard';
+import { LanguageProvider } from '@/lib/i18n';
+import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 
 // ⚡ Optimized font loading with display swap
 const inter = Inter({ 
@@ -23,22 +25,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="sq">
       <body className={inter.className}>
         <QueryProvider>
-          <AuthGuard>
-            {children}
-          </AuthGuard>
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              // ⚡ Faster toast animations
-              duration: 3000,
-              style: {
-                animation: 'slideIn 0.2s ease-out',
-              },
-            }}
-          />
+          <LanguageProvider>
+            <AuthGuard>
+              {children}
+            </AuthGuard>
+            <OfflineIndicator />
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  animation: 'slideIn 0.2s ease-out',
+                },
+              }}
+            />
+          </LanguageProvider>
         </QueryProvider>
       </body>
     </html>

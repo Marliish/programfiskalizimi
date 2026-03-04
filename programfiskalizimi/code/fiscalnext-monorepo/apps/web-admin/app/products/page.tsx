@@ -217,7 +217,7 @@ export default function ProductsPage() {
         sellingPrice: 0,
         costPrice: 0,
         taxRate: systemSettings.taxRate,
-        currency: systemSettings.currency,
+        currency: systemSettings.currency as 'ALL' | 'EUR' | 'USD',
         unit: 'pieces',
         isActive: true,
         imageUrl: '',
@@ -229,9 +229,19 @@ export default function ProductsPage() {
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
-    Object.keys(product).forEach((key) => {
-      setValue(key as keyof ProductFormData, product[key as keyof Product]);
-    });
+    // Set form values from product
+    setValue('name', product.name || '');
+    setValue('sku', product.sku || '');
+    setValue('barcode', product.barcode || '');
+    setValue('description', product.description || '');
+    setValue('categoryId', product.categoryId || '');
+    setValue('sellingPrice', product.sellingPrice || 0);
+    setValue('costPrice', product.costPrice || 0);
+    setValue('taxRate', product.taxRate || systemSettings.taxRate);
+    setValue('currency', (product.currency || 'EUR') as 'ALL' | 'EUR' | 'USD');
+    setValue('unit', product.unit || 'pieces');
+    setValue('isActive', product.isActive ?? true);
+    setValue('imageUrl', product.imageUrl || '');
     setIsModalOpen(true);
   };
 

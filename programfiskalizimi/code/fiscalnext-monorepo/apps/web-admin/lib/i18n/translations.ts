@@ -1,0 +1,296 @@
+// Translations for FiscalNext
+// Supports: English (en), Albanian (sq)
+
+export type Language = 'en' | 'sq';
+
+export const translations = {
+  en: {
+    // Navigation
+    dashboard: 'Dashboard',
+    products: 'Products',
+    categories: 'Categories',
+    customers: 'Customers',
+    sales: 'Sales',
+    transactions: 'Transactions',
+    reports: 'Reports',
+    settings: 'Settings',
+    inventory: 'Inventory',
+    employees: 'Employees',
+    fiscalReceipts: 'Fiscal Receipts',
+    auditLogs: 'Audit Logs',
+    notifications: 'Notifications',
+    
+    // Common Actions
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    edit: 'Edit',
+    add: 'Add',
+    search: 'Search',
+    filter: 'Filter',
+    export: 'Export',
+    import: 'Import',
+    print: 'Print',
+    close: 'Close',
+    confirm: 'Confirm',
+    back: 'Back',
+    next: 'Next',
+    loading: 'Loading...',
+    
+    // POS
+    newSale: 'New Sale',
+    addToCart: 'Add to Cart',
+    cart: 'Cart',
+    total: 'Total',
+    subtotal: 'Subtotal',
+    tax: 'Tax',
+    discount: 'Discount',
+    pay: 'Pay',
+    cash: 'Cash',
+    card: 'Card',
+    receipt: 'Receipt',
+    printReceipt: 'Print Receipt',
+    emailReceipt: 'Email Receipt',
+    whatsappReceipt: 'WhatsApp Receipt',
+    quantity: 'Quantity',
+    price: 'Price',
+    clearCart: 'Clear Cart',
+    checkout: 'Checkout',
+    payment: 'Payment',
+    change: 'Change',
+    paid: 'Paid',
+    
+    // Products
+    productName: 'Product Name',
+    sku: 'SKU',
+    barcode: 'Barcode',
+    category: 'Category',
+    sellingPrice: 'Selling Price',
+    costPrice: 'Cost Price',
+    stock: 'Stock',
+    lowStock: 'Low Stock',
+    outOfStock: 'Out of Stock',
+    inStock: 'In Stock',
+    
+    // Customers
+    customerName: 'Customer Name',
+    email: 'Email',
+    phone: 'Phone',
+    address: 'Address',
+    walkInCustomer: 'Walk-in Customer',
+    
+    // Time
+    today: 'Today',
+    yesterday: 'Yesterday',
+    thisWeek: 'This Week',
+    thisMonth: 'This Month',
+    thisYear: 'This Year',
+    lastWeek: 'Last Week',
+    lastMonth: 'Last Month',
+    last7Days: 'Last 7 Days',
+    last30Days: 'Last 30 Days',
+    
+    // Status
+    completed: 'Completed',
+    pending: 'Pending',
+    cancelled: 'Cancelled',
+    refunded: 'Refunded',
+    active: 'Active',
+    inactive: 'Inactive',
+    online: 'Online',
+    offline: 'Offline',
+    
+    // Messages
+    success: 'Success',
+    error: 'Error',
+    warning: 'Warning',
+    info: 'Info',
+    savedSuccessfully: 'Saved successfully',
+    deletedSuccessfully: 'Deleted successfully',
+    somethingWentWrong: 'Something went wrong',
+    noDataFound: 'No data found',
+    confirmDelete: 'Are you sure you want to delete?',
+    
+    // Offline
+    offlineMode: 'Offline Mode',
+    offlineMessage: 'You are currently offline. Transactions will be synced when back online.',
+    pendingSync: 'Pending Sync',
+    syncNow: 'Sync Now',
+    syncing: 'Syncing...',
+    syncComplete: 'Sync Complete',
+    transactionsQueued: 'transactions queued',
+    
+    // Currency
+    currency: 'Currency',
+    all: 'ALL',
+    eur: 'EUR',
+    usd: 'USD',
+    lek: 'Lek',
+    euro: 'Euro',
+    dollar: 'Dollar',
+    
+    // Reports
+    totalSales: 'Total Sales',
+    totalRevenue: 'Total Revenue',
+    totalTransactions: 'Total Transactions',
+    averageOrderValue: 'Average Order Value',
+    bestSellers: 'Best Sellers',
+    
+    // Settings
+    language: 'Language',
+    theme: 'Theme',
+    darkMode: 'Dark Mode',
+    lightMode: 'Light Mode',
+    profile: 'Profile',
+    logout: 'Logout',
+    login: 'Login',
+    register: 'Register',
+    forgotPassword: 'Forgot Password',
+  },
+  
+  sq: {
+    // Navigation
+    dashboard: 'Paneli',
+    products: 'Produktet',
+    categories: 'Kategoritë',
+    customers: 'Klientët',
+    sales: 'Shitjet',
+    transactions: 'Transaksionet',
+    reports: 'Raportet',
+    settings: 'Cilësimet',
+    inventory: 'Inventari',
+    employees: 'Punonjësit',
+    fiscalReceipts: 'Faturat Fiskale',
+    auditLogs: 'Regjistri i Auditimit',
+    notifications: 'Njoftimet',
+    
+    // Common Actions
+    save: 'Ruaj',
+    cancel: 'Anulo',
+    delete: 'Fshi',
+    edit: 'Ndrysho',
+    add: 'Shto',
+    search: 'Kërko',
+    filter: 'Filtro',
+    export: 'Eksporto',
+    import: 'Importo',
+    print: 'Printo',
+    close: 'Mbyll',
+    confirm: 'Konfirmo',
+    back: 'Kthehu',
+    next: 'Tjetër',
+    loading: 'Duke ngarkuar...',
+    
+    // POS
+    newSale: 'Shitje e Re',
+    addToCart: 'Shto në Shportë',
+    cart: 'Shporta',
+    total: 'Totali',
+    subtotal: 'Nëntotali',
+    tax: 'TVSH',
+    discount: 'Zbritja',
+    pay: 'Paguaj',
+    cash: 'Para në Dorë',
+    card: 'Kartë',
+    receipt: 'Faturë',
+    printReceipt: 'Printo Faturën',
+    emailReceipt: 'Dërgo me Email',
+    whatsappReceipt: 'Dërgo në WhatsApp',
+    quantity: 'Sasia',
+    price: 'Çmimi',
+    clearCart: 'Pastro Shportën',
+    checkout: 'Përfundo',
+    payment: 'Pagesa',
+    change: 'Kusuri',
+    paid: 'Paguar',
+    
+    // Products
+    productName: 'Emri i Produktit',
+    sku: 'SKU',
+    barcode: 'Barkodi',
+    category: 'Kategoria',
+    sellingPrice: 'Çmimi i Shitjes',
+    costPrice: 'Çmimi i Kostos',
+    stock: 'Stoku',
+    lowStock: 'Stok i Ulët',
+    outOfStock: 'Jashtë Stokut',
+    inStock: 'Në Stok',
+    
+    // Customers
+    customerName: 'Emri i Klientit',
+    email: 'Email',
+    phone: 'Telefon',
+    address: 'Adresa',
+    walkInCustomer: 'Klient i Rastësishëm',
+    
+    // Time
+    today: 'Sot',
+    yesterday: 'Dje',
+    thisWeek: 'Këtë Javë',
+    thisMonth: 'Këtë Muaj',
+    thisYear: 'Këtë Vit',
+    lastWeek: 'Javën e Kaluar',
+    lastMonth: 'Muajin e Kaluar',
+    last7Days: '7 Ditët e Fundit',
+    last30Days: '30 Ditët e Fundit',
+    
+    // Status
+    completed: 'Përfunduar',
+    pending: 'Në Pritje',
+    cancelled: 'Anuluar',
+    refunded: 'Rimbursuar',
+    active: 'Aktiv',
+    inactive: 'Joaktiv',
+    online: 'Online',
+    offline: 'Offline',
+    
+    // Messages
+    success: 'Sukses',
+    error: 'Gabim',
+    warning: 'Paralajmërim',
+    info: 'Informacion',
+    savedSuccessfully: 'U ruajt me sukses',
+    deletedSuccessfully: 'U fshi me sukses',
+    somethingWentWrong: 'Diçka shkoi keq',
+    noDataFound: 'Nuk u gjet asnjë e dhënë',
+    confirmDelete: 'Jeni të sigurt që dëshironi të fshini?',
+    
+    // Offline
+    offlineMode: 'Modaliteti Offline',
+    offlineMessage: 'Jeni offline. Transaksionet do të sinkronizohen kur të lidheni.',
+    pendingSync: 'Në Pritje për Sinkronizim',
+    syncNow: 'Sinkronizo Tani',
+    syncing: 'Duke sinkronizuar...',
+    syncComplete: 'Sinkronizimi Përfundoi',
+    transactionsQueued: 'transaksione në pritje',
+    
+    // Currency
+    currency: 'Monedha',
+    all: 'ALL',
+    eur: 'EUR',
+    usd: 'USD',
+    lek: 'Lek',
+    euro: 'Euro',
+    dollar: 'Dollar',
+    
+    // Reports
+    totalSales: 'Shitjet Totale',
+    totalRevenue: 'Të Ardhurat Totale',
+    totalTransactions: 'Transaksionet Totale',
+    averageOrderValue: 'Vlera Mesatare e Porosisë',
+    bestSellers: 'Më të Shitura',
+    
+    // Settings
+    language: 'Gjuha',
+    theme: 'Tema',
+    darkMode: 'Modaliteti i Errët',
+    lightMode: 'Modaliteti i Ndritshëm',
+    profile: 'Profili',
+    logout: 'Dilni',
+    login: 'Hyr',
+    register: 'Regjistrohu',
+    forgotPassword: 'Keni Harruar Fjalëkalimin',
+  },
+} as const;
+
+export type TranslationKey = keyof typeof translations.en;

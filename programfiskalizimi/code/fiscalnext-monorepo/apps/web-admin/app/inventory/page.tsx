@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Package, AlertTriangle, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { FiPackage, FiAlertTriangle, FiTrendingUp, FiTrendingDown, FiSearch } from 'react-icons/fi';
 import { DashboardLayout } from '@/components/layout';
 import { Card, Button, Input, Modal } from '@/components/ui';
 import axios from 'axios';
@@ -178,7 +178,7 @@ export default function InventoryPage() {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <Package className="inline mr-2 h-4 w-4" /> Stock Levels
+            <FiPackage className="inline mr-2 h-4 w-4" /> Stock Levels
           </button>
           <button
             onClick={() => setActiveTab('movements')}
@@ -198,7 +198,7 @@ export default function InventoryPage() {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <AlertTriangle className="inline mr-2 h-4 w-4" /> Low Stock ({alerts.length})
+            <FiAlertTriangle className="inline mr-2 h-4 w-4" /> Low Stock ({alerts.length})
           </button>
         </div>
 
@@ -207,7 +207,7 @@ export default function InventoryPage() {
           <>
             <div className="flex items-center gap-4">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <FiSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="Search products..."
@@ -234,7 +234,7 @@ export default function InventoryPage() {
                           <span className="font-medium">{item.productName}</span>
                           {item.isLowStock && (
                             <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" /> Low Stock
+                              <FiAlertTriangle className="h-3 w-3" /> Low Stock
                             </span>
                           )}
                         </div>
@@ -296,9 +296,9 @@ export default function InventoryPage() {
                 <Card key={movement.id}>
                   <div className="flex items-center gap-4">
                     {movement.type === 'in' ? (
-                      <TrendingUp className="h-5 w-5 text-green-600" />
+                      <FiTrendingUp className="h-5 w-5 text-green-600" />
                     ) : (
-                      <TrendingDown className="h-5 w-5 text-red-600" />
+                      <FiTrendingDown className="h-5 w-5 text-red-600" />
                     )}
                     <div className="flex-1">
                       <div className="font-medium">{movement.productName}</div>

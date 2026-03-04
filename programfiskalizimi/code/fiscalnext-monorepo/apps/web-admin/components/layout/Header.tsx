@@ -5,6 +5,8 @@ import { Button } from '@/components/ui';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useState } from 'react';
+import { LanguageSwitcher, useTranslation } from '@/lib/i18n';
+import { OfflineIndicatorCompact } from '@/components/ui/OfflineIndicator';
 
 interface HeaderProps {
   title?: string;
@@ -29,12 +31,18 @@ export function Header({ title, subtitle }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Offline Indicator */}
+        <OfflineIndicatorCompact />
+
+        {/* Language Switcher */}
+        <LanguageSwitcher />
+
         {/* Search */}
         <div className="relative hidden md:block">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="search"
-            placeholder="Search..."
+            placeholder="Kërko..."
             className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 w-64"
           />
         </div>
