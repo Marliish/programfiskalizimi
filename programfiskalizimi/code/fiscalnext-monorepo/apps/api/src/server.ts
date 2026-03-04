@@ -93,6 +93,7 @@ import { advancedInventoryRoutes } from './routes/advanced-inventory';
 import { manufacturingBOMRoutes } from './routes/manufacturing-bom';
 import { manufacturingPlanningRoutes } from './routes/manufacturing-planning';
 import { manufacturingWorkOrdersQCCostingRoutes } from './routes/manufacturing-workorders-qc-costing';
+import whatsappRoutes from './routes/whatsapp';
 
 // Load environment variables
 dotenv.config();
@@ -329,6 +330,7 @@ await server.register(seoRoutes, { prefix: '/v1' });
 await server.register(manufacturingBOMRoutes, { prefix: '/v1' });
 await server.register(manufacturingPlanningRoutes, { prefix: '/v1' });
 await server.register(manufacturingWorkOrdersQCCostingRoutes, { prefix: '/v1' });
+await server.register(whatsappRoutes, { prefix: '/v1' });
 
 // Start Server
 const start = async () => {

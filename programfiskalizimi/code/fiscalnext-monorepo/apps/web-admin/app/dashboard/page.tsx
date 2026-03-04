@@ -7,6 +7,7 @@ import { FiDollarSign, FiShoppingBag, FiPackage, FiAlertTriangle, FiRefreshCw } 
 import { productsApi, transactionsApi, settingsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { useTranslation } from '@/lib/i18n';
 
 interface Transaction {
   id: string;
@@ -19,6 +20,7 @@ interface Transaction {
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState({
     totalProducts: 0,
     todaySales: 0,
@@ -90,19 +92,19 @@ export default function DashboardPage() {
   };
 
   return (
-    <DashboardLayout title="Dashboard" subtitle="Welcome back! Here's your overview">
+    <DashboardLayout title={t('dashboard')} subtitle="">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {loading ? (
           <div className="col-span-full text-center py-8 text-gray-500">
-            Loading dashboard...
+            {t('loading')}
           </div>
         ) : (
           <>
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Products</p>
+                  <p className="text-sm font-medium text-gray-600">{t('products')}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-2">{stats.totalProducts}</p>
                 </div>
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center text-blue-600 bg-blue-100">
@@ -114,7 +116,7 @@ export default function DashboardPage() {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Sales Today</p>
+                  <p className="text-sm font-medium text-gray-600">{t('sales')} {t('today')}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-2">{stats.todaySales}</p>
                 </div>
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center text-green-600 bg-green-100">
@@ -126,7 +128,7 @@ export default function DashboardPage() {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
+                  <p className="text-sm font-medium text-gray-600">{t('lowStock')}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-2">{stats.lowStockCount}</p>
                 </div>
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center text-orange-600 bg-orange-100">
@@ -139,8 +141,8 @@ export default function DashboardPage() {
               <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary-500">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Refresh</p>
-                    <p className="text-sm text-gray-500 mt-2">Update data</p>
+                    <p className="text-sm font-medium text-gray-600">{t('syncNow')}</p>
+                    <p className="text-sm text-gray-500 mt-2"></p>
                   </div>
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center text-purple-600 bg-purple-100">
                     <FiRefreshCw className="w-6 h-6" />
@@ -158,7 +160,7 @@ export default function DashboardPage() {
           <Card key={currency} className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Today's Revenue</p>
+                <p className="text-sm font-medium text-gray-600">{t('totalRevenue')} {t('today')}</p>
                 <p className="text-xs text-gray-500 mt-1">{currency}</p>
                 <p className="text-2xl font-bold text-gray-900 mt-2">
                   {formatCurrency(stats.revenueByCurrency[currency] || 0, currency)}

@@ -240,3 +240,33 @@ export const auditLogsApi = {
     api.get('/audit/summary', { params }),
   search: (query: string) => api.get('/audit', { params: { q: query } }),
 };
+
+// WhatsApp API - Send receipts and messages via WhatsApp
+export const whatsappApi = {
+  // Check if WhatsApp is configured
+  getStatus: () => api.get('/whatsapp/status'),
+  
+  // Send receipt via WhatsApp
+  sendReceipt: (data: {
+    to: string;
+    businessName: string;
+    transactionNumber: string;
+    items: Array<{
+      name: string;
+      quantity: number;
+      unitPrice: number;
+      total: number;
+    }>;
+    subtotal: number;
+    taxAmount: number;
+    taxRate: number;
+    total: number;
+    paymentMethod: string;
+    currency: string;
+    fiscalCode?: string;
+  }) => api.post('/whatsapp/send-receipt', data),
+  
+  // Send custom message
+  sendMessage: (to: string, message: string) => 
+    api.post('/whatsapp/send-message', { to, message }),
+};

@@ -85,15 +85,15 @@ class OfflineDatabase {
   }
 
   async getPendingTransactions(): Promise<OfflineTransaction[]> {
-    return this.getAllByIndex('pendingTransactions', 'synced', false);
+    // Get all transactions and filter for unsynced ones
+    // (IndexedDB doesn't support boolean index keys)
+    const all = await this.getAll('pendingTransactions');
+    return all.filter((tx: OfflineTransaction) => !tx.synced);
   }
 
   async markTransactionSynced(id: string): Promise<void> {
-    const tx = await this.get('pendingTransactions', id);
-    if (tx) {
-      tx.synced = true;
-      await this.put('pendingTransactions', tx);
-    }
+    // Just delete synced transactions - no need to keep them
+    await this.delete('pendingTransactions', id);
   }
 
   async deleteTransaction(id: string): Promise<void> {

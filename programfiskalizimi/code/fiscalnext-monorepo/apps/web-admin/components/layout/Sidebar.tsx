@@ -17,25 +17,32 @@ import {
   FiBell,
   FiActivity
 } from 'react-icons/fi';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
-// Navigation with required permissions
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: FiHome, permissions: [] }, // Everyone
-  { name: 'Point of Sale', href: '/pos', icon: FiShoppingCart, permissions: ['sales:create'] },
-  { name: 'Products', href: '/products', icon: FiPackage, permissions: ['admin:products', 'inventory:view'] },
-  { name: 'Categories', href: '/categories', icon: FiPackage, permissions: ['admin:products'] },
-  { name: 'Inventory', href: '/inventory', icon: FiLayers, permissions: ['inventory:view'] },
-  { name: 'Customers', href: '/customers', icon: FiUsers, permissions: ['admin:products'] },
-  { name: 'Employees', href: '/employees', icon: FiUserPlus, permissions: ['admin:employees'] },
-  { name: 'Notifications', href: '/notifications', icon: FiBell, permissions: [] },
-  { name: 'Fiscal Receipts', href: '/fiscal-receipts', icon: FiFileText, permissions: ['cash:reports'] },
-  { name: 'Audit Logs', href: '/audit-logs', icon: FiActivity, permissions: ['admin:settings'] },
-  { name: 'Reports', href: '/reports', icon: FiBarChart2, permissions: ['cash:reports', 'admin:reports'] },
-  { name: 'Settings', href: '/settings', icon: FiSettings, permissions: ['admin:settings'] },
+// Navigation with required permissions and translation keys
+const navigation: Array<{
+  key: TranslationKey;
+  href: string;
+  icon: any;
+  permissions: string[];
+}> = [
+  { key: 'dashboard', href: '/dashboard', icon: FiHome, permissions: [] },
+  { key: 'newSale', href: '/pos', icon: FiShoppingCart, permissions: ['sales:create'] },
+  { key: 'products', href: '/products', icon: FiPackage, permissions: ['admin:products', 'inventory:view'] },
+  { key: 'categories', href: '/categories', icon: FiPackage, permissions: ['admin:products'] },
+  { key: 'inventory', href: '/inventory', icon: FiLayers, permissions: ['inventory:view'] },
+  { key: 'customers', href: '/customers', icon: FiUsers, permissions: ['admin:products'] },
+  { key: 'employees', href: '/employees', icon: FiUserPlus, permissions: ['admin:employees'] },
+  { key: 'notifications', href: '/notifications', icon: FiBell, permissions: [] },
+  { key: 'fiscalReceipts', href: '/fiscal-receipts', icon: FiFileText, permissions: ['cash:reports'] },
+  { key: 'auditLogs', href: '/audit-logs', icon: FiActivity, permissions: ['admin:settings'] },
+  { key: 'reports', href: '/reports', icon: FiBarChart2, permissions: ['cash:reports', 'admin:reports'] },
+  { key: 'settings', href: '/settings', icon: FiSettings, permissions: ['admin:settings'] },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
 
@@ -89,7 +96,7 @@ export function Sidebar() {
             const Icon = item.icon;
             
             return (
-              <li key={item.name}>
+              <li key={item.key}>
                 <Link
                   href={item.href}
                   className={clsx(
@@ -100,7 +107,7 @@ export function Sidebar() {
                   )}
                 >
                   <Icon className="w-5 h-5" />
-                  {item.name}
+                  {t(item.key)}
                 </Link>
               </li>
             );

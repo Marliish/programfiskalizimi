@@ -12,9 +12,14 @@ import {
   FiDollarSign,
   FiSmartphone,
   FiPrinter,
+  FiX,
+  FiCheck,
 } from 'react-icons/fi';
-import { productsApi, transactionsApi } from '@/lib/api';
+import { FaWhatsapp } from 'react-icons/fa';
+import { productsApi, transactionsApi, settingsApi, whatsappApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { generateWhatsAppReceipt, shareViaWhatsApp, type ReceiptData } from '@/lib/utils/receiptGenerator';
+import { useTranslation } from '@/lib/i18n';
 
 interface Product {
   id: string;
@@ -51,6 +56,7 @@ const formatCurrency = (amount: number, currency: string = 'ALL') => {
 };
 
 export default function POSPage() {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -58,6 +64,28 @@ export default function POSPage() {
   const [amountReceived, setAmountReceived] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [lastTransaction, setLastTransaction] = useState<any>(null);
+  const [businessInfo, setBusinessInfo] = useState<any>({});
+  const [customerPhone, setCustomerPhone] = useState<string>('');
+  const [autoSendWhatsApp, setAutoSendWhatsApp] = useState<boolean>(false);
+  const [whatsappEnabled, setWhatsappEnabled] = useState<boolean>(false);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState<boolean>(false);
+
+  // Fetch business settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await settingsApi.get();
+        if (res.data.success) {
+          setBusinessInfo(res.data.settings || {});
+        }
+      } catch (e) {
+        // Use defaults
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Fetch products
   const fetchProducts = async () => {
@@ -200,10 +228,19 @@ export default function POSPage() {
       const response = await transactionsApi.create(transactionData);
 
       if (response.data.success) {
-        toast.success('Transaction completed successfully!');
+        toast.success(t('completed') + '!');
         
-        // Print receipt
-        printReceipt(response.data.transaction);
+        // Store transaction for receipt modal
+        setLastTransaction({
+          ...response.data.transaction,
+          cart: [...cart],
+          paymentMethod,
+          amountPaid: paymentMethod === 'cash' ? parseFloat(amountReceived) : total,
+          change: paymentMethod === 'cash' ? parseFloat(amountReceived) - total : 0,
+        });
+        
+        // Show receipt modal
+        setShowReceiptModal(true);
 
         // Clear cart and reset
         setCart([]);
@@ -542,14 +579,115 @@ export default function POSPage() {
                   className="w-full mt-4"
                   size="lg"
                 >
-                  <FiPrinter className="w-5 h-5 mr-2" />
-                  Complete & Print Receipt
+                  <FiCheck className="w-5 h-5 mr-2" />
+                  {t('checkout')}
                 </Button>
               </Card>
             </>
           )}
         </div>
       </div>
+
+      {/* Receipt Success Modal */}
+      {showReceiptModal && lastTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {/* Success Header */}
+            <div className="bg-green-500 text-white p-6 text-center">
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+                <FiCheck className="w-10 h-10 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold">Transaksioni u Kompletua!</h2>
+              <p className="text-green-100 mt-2">
+                Fatura #{lastTransaction.transactionNumber}
+              </p>
+            </div>
+
+            {/* Transaction Summary */}
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between items-center text-lg">
+                <span className="text-gray-600">{t('total')}:</span>
+                <span className="font-bold text-2xl">
+                  {formatCurrency(lastTransaction.total || 0, lastTransaction.cart?.[0]?.currency || 'ALL')}
+                </span>
+              </div>
+
+              {lastTransaction.change > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">{t('change')}:</span>
+                  <span className="font-semibold text-green-600">
+                    {formatCurrency(lastTransaction.change, lastTransaction.cart?.[0]?.currency || 'ALL')}
+                  </span>
+                </div>
+              )}
+
+              <div className="border-t pt-4 mt-4">
+                <p className="text-sm text-gray-500 mb-3">Si dëshironi ta merrni faturën?</p>
+                
+                {/* Receipt Options */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => {
+                      printReceipt(lastTransaction);
+                    }}
+                    className="flex items-center justify-center gap-2 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                  >
+                    <FiPrinter className="w-6 h-6 text-blue-600" />
+                    <span className="font-medium">{t('print')}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const receiptData: ReceiptData = {
+                        businessName: businessInfo.businessName || 'FiscalNext',
+                        businessAddress: businessInfo.address || '',
+                        businessPhone: businessInfo.phone || '',
+                        businessNUIS: businessInfo.nuis || '',
+                        transactionNumber: lastTransaction.transactionNumber,
+                        date: new Date(lastTransaction.createdAt || new Date()),
+                        items: (lastTransaction.cart || []).map((item: CartItem) => ({
+                          name: item.productName,
+                          quantity: item.quantity,
+                          unitPrice: item.unitPrice,
+                          total: item.total,
+                        })),
+                        subtotal: lastTransaction.subtotal || 0,
+                        taxAmount: lastTransaction.taxAmount || 0,
+                        taxRate: 20,
+                        total: lastTransaction.total || 0,
+                        paymentMethod: lastTransaction.paymentMethod,
+                        amountPaid: lastTransaction.amountPaid,
+                        change: lastTransaction.change,
+                        currency: lastTransaction.cart?.[0]?.currency || 'ALL',
+                        fiscalCode: lastTransaction.fiscalCode || lastTransaction.iic,
+                      };
+                      const receipt = generateWhatsAppReceipt(receiptData);
+                      shareViaWhatsApp(receipt);
+                    }}
+                    className="flex items-center justify-center gap-2 p-4 border-2 border-green-200 rounded-xl hover:border-green-500 bg-green-50 hover:bg-green-100 transition-colors"
+                  >
+                    <FaWhatsapp className="w-6 h-6 text-green-600" />
+                    <span className="font-medium text-green-700">WhatsApp</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowReceiptModal(false);
+                  setLastTransaction(null);
+                }}
+                className="w-full py-3 text-gray-600 hover:text-gray-800 font-medium"
+              >
+                {t('close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
