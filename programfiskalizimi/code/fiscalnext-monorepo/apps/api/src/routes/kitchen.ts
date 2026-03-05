@@ -165,11 +165,7 @@ export async function kitchenRoutes(fastify: FastifyInstance) {
               items: {
                 include: {
                   product: true,
-                  modifiers: {
-                    include: {
-                      modifier: true,
-                    },
-                  },
+                  modifiers: true,
                 },
               },
             },
@@ -198,7 +194,7 @@ export async function kitchenRoutes(fastify: FastifyInstance) {
       const { orderId, notes } = sendOrderToKitchenSchema.parse(request.body);
 
       // Get order with items
-      const order = await prisma.order.findFirst({
+      const order = await prisma.restaurantOrder.findFirst({
         where: {
           id: orderId,
           tenantId: decoded.tenantId,
@@ -220,11 +216,7 @@ export async function kitchenRoutes(fastify: FastifyInstance) {
                   },
                 },
               },
-              modifiers: {
-                include: {
-                  modifier: true,
-                },
-              },
+              modifiers: true,
             },
           },
         },
@@ -291,7 +283,7 @@ export async function kitchenRoutes(fastify: FastifyInstance) {
       );
 
       // Update order status
-      await prisma.order.update({
+      await prisma.restaurantOrder.update({
         where: { id: orderId },
         data: {
           status: 'sent_to_kitchen',
@@ -300,7 +292,7 @@ export async function kitchenRoutes(fastify: FastifyInstance) {
       });
 
       // Update order items status
-      await prisma.orderItem.updateMany({
+      await prisma.restaurantOrderItem.updateMany({
         where: { orderId },
         data: {
           status: 'preparing',
@@ -363,7 +355,7 @@ export async function kitchenRoutes(fastify: FastifyInstance) {
         const allReady = allKitchenOrders.every(ko => ko.status === 'ready' || ko.status === 'served');
 
         if (allReady) {
-          await prisma.order.update({
+          await prisma.restaurantOrder.update({
             where: { id: kitchenOrder.orderId },
             data: { status: 'ready' },
           });
@@ -404,7 +396,7 @@ export async function kitchenRoutes(fastify: FastifyInstance) {
       const items = kitchenOrder.items as any[];
       const itemIds = items.map(i => i.orderItemId);
 
-      await prisma.orderItem.updateMany({
+      await prisma.restaurantOrderItem.updateMany({
         where: {
           id: { in: itemIds },
         },
@@ -490,6 +482,333 @@ export async function kitchenRoutes(fastify: FastifyInstance) {
       reply.status(500).send({
         success: false,
         error: 'Failed to fetch kitchen stats',
+      });
+    }
+  });
+
+  // Create a demo order (for testing kitchen display)
+  const createDemoOrderSchema = z.object({
+    tableNumber: z.string(),
+    notes: z.string().optional(),
+    items: z.array(z.object({
+      productName: z.string(),
+      quantity: z.number().default(1),
+      notes: z.string().optional(),
+    })),
+  });
+
+  fastify.post<{ Body: z.infer<typeof createDemoOrderSchema> }>('/kitchen/demo-order', async (request, reply) => {
+    try {
+      const decoded = request.user as any;
+      const { tableNumber, notes, items } = createDemoOrderSchema.parse(request.body);
+
+      // Get or create a default station
+      let station = await prisma.kitchenStation.findFirst({
+        where: { tenantId: decoded.tenantId, isActive: true },
+      });
+
+      if (!station) {
+        station = await prisma.kitchenStation.create({
+          data: {
+            tenantId: decoded.tenantId,
+            name: 'Main Kitchen',
+            stationType: 'grill',
+            color: '#ef4444',
+          },
+        });
+      }
+
+      // Create or get a table
+      let table = await prisma.restaurantTable.findFirst({
+        where: { tenantId: decoded.tenantId, tableNumber },
+      });
+
+      if (!table) {
+        table = await prisma.restaurantTable.create({
+          data: {
+            tenantId: decoded.tenantId,
+            tableNumber,
+            capacity: 4,
+            status: 'occupied',
+          },
+        });
+      }
+
+      // Create restaurant order
+      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
+      const order = await prisma.restaurantOrder.create({
+        data: {
+          tenantId: decoded.tenantId,
+          orderNumber,
+          tableId: table.id,
+          orderType: 'dine_in',
+          status: 'sent_to_kitchen',
+          subtotal: 0,
+          total: 0,
+          sentToKitchenAt: new Date(),
+        },
+      });
+
+      // Create kitchen order
+      const kitchenOrder = await prisma.kitchenOrder.create({
+        data: {
+          tenantId: decoded.tenantId,
+          orderId: order.id,
+          stationId: station.id,
+          orderNumber,
+          tableNumber,
+          items: items as any,
+          notes: notes || null,
+          status: 'pending',
+          priority: 0,
+        },
+        include: {
+          station: true,
+        },
+      });
+
+      return {
+        success: true,
+        kitchenOrder,
+        message: `Order ${orderNumber} sent to kitchen!`,
+      };
+    } catch (error) {
+      console.error('Failed to create demo order:', error);
+      reply.status(400).send({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create demo order',
+      });
+    }
+  });
+
+  // Create a REAL order (integrated with main system)
+  const createOrderSchema = z.object({
+    tableNumber: z.string(),
+    notes: z.string().optional(),
+    items: z.array(z.object({
+      productId: z.string(),
+      productName: z.string(),
+      quantity: z.number().default(1),
+      unitPrice: z.number(),
+      notes: z.string().optional(),
+    })),
+  });
+
+  fastify.post<{ Body: z.infer<typeof createOrderSchema> }>('/kitchen/create-order', async (request, reply) => {
+    try {
+      const decoded = request.user as any;
+      const { tableNumber, notes, items } = createOrderSchema.parse(request.body);
+
+      // Calculate totals
+      const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+      const taxRate = 0.20;
+      const taxAmount = subtotal * taxRate;
+      const total = subtotal + taxAmount;
+
+      // Get or create station
+      let station = await prisma.kitchenStation.findFirst({
+        where: { tenantId: decoded.tenantId, isActive: true },
+      });
+
+      if (!station) {
+        station = await prisma.kitchenStation.create({
+          data: {
+            tenantId: decoded.tenantId,
+            name: 'Main Kitchen',
+            stationType: 'grill',
+            color: '#ef4444',
+          },
+        });
+      }
+
+      // Get or create table
+      let table = await prisma.restaurantTable.findFirst({
+        where: { tenantId: decoded.tenantId, tableNumber },
+      });
+
+      if (!table) {
+        table = await prisma.restaurantTable.create({
+          data: {
+            tenantId: decoded.tenantId,
+            tableNumber,
+            capacity: 4,
+            status: 'occupied',
+          },
+        });
+      } else {
+        await prisma.restaurantTable.update({
+          where: { id: table.id },
+          data: { status: 'occupied' },
+        });
+      }
+
+      // Create restaurant order
+      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
+      const order = await prisma.restaurantOrder.create({
+        data: {
+          tenantId: decoded.tenantId,
+          orderNumber,
+          tableId: table.id,
+          orderType: 'dine_in',
+          status: 'sent_to_kitchen',
+          subtotal,
+          taxAmount,
+          total,
+          sentToKitchenAt: new Date(),
+        },
+      });
+
+      // Create restaurant order items
+      for (const item of items) {
+        await prisma.restaurantOrderItem.create({
+          data: {
+            orderId: order.id,
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.unitPrice * item.quantity,
+            notes: item.notes || null,
+            status: 'pending',
+            sentToKitchenAt: new Date(),
+          },
+        });
+      }
+
+      // Create kitchen order
+      const kitchenOrder = await prisma.kitchenOrder.create({
+        data: {
+          tenantId: decoded.tenantId,
+          orderId: order.id,
+          stationId: station.id,
+          orderNumber,
+          tableNumber,
+          items: items.map(i => ({
+            productId: i.productId,
+            productName: i.productName,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            notes: i.notes,
+          })) as any,
+          notes: notes || null,
+          status: 'pending',
+          priority: 0,
+        },
+        include: {
+          station: true,
+        },
+      });
+
+      return {
+        success: true,
+        kitchenOrder,
+        order: {
+          id: order.id,
+          orderNumber,
+          total,
+        },
+        message: `Order ${orderNumber} sent to kitchen!`,
+      };
+    } catch (error) {
+      console.error('Failed to create order:', error);
+      reply.status(400).send({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create order',
+      });
+    }
+  });
+
+  // Complete order and create transaction (for dashboard/reports)
+  fastify.post<{ Body: { kitchenOrderId: string; paymentMethod?: string } }>('/kitchen/complete-order', async (request, reply) => {
+    try {
+      const decoded = request.user as any;
+      const { kitchenOrderId, paymentMethod = 'cash' } = request.body;
+
+      // Get kitchen order with restaurant order
+      const kitchenOrder = await prisma.kitchenOrder.findFirst({
+        where: {
+          id: kitchenOrderId,
+          tenantId: decoded.tenantId,
+        },
+        include: {
+          order: true,
+        },
+      });
+
+      if (!kitchenOrder || !kitchenOrder.order) {
+        return reply.status(404).send({ success: false, error: 'Order not found' });
+      }
+
+      const restaurantOrder = kitchenOrder.order;
+
+      // Update kitchen order status
+      await prisma.kitchenOrder.update({
+        where: { id: kitchenOrderId },
+        data: {
+          status: 'served',
+          servedAt: new Date(),
+          completedAt: new Date(),
+        },
+      });
+
+      // Update restaurant order
+      await prisma.restaurantOrder.update({
+        where: { id: restaurantOrder.id },
+        data: {
+          status: 'paid',
+          paidAt: new Date(),
+        },
+      });
+
+      // Update table status
+      if (restaurantOrder.tableId) {
+        await prisma.restaurantTable.update({
+          where: { id: restaurantOrder.tableId },
+          data: { status: 'available' },
+        });
+      }
+
+      // Create a REAL transaction for dashboard/reports
+      const transactionNumber = `TXN-${Date.now().toString(36).toUpperCase()}`;
+      const items = kitchenOrder.items as any[];
+      
+      const transaction = await prisma.transaction.create({
+        data: {
+          tenant: { connect: { id: decoded.tenantId } },
+          user: { connect: { id: decoded.userId } },
+          transactionNumber,
+          status: 'completed',
+          subtotal: Number(restaurantOrder.subtotal),
+          taxAmount: Number(restaurantOrder.taxAmount),
+          total: Number(restaurantOrder.total),
+          notes: `Table ${kitchenOrder.tableNumber} - ${restaurantOrder.orderNumber}`,
+          items: {
+            create: items.map(item => ({
+              product: { connect: { id: item.productId } },
+              productName: item.productName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              taxRate: 20,
+              subtotal: item.unitPrice * item.quantity,
+              total: item.unitPrice * item.quantity * 1.2,
+            })),
+          },
+        },
+        include: {
+          items: true,
+        },
+      });
+
+      return {
+        success: true,
+        transaction,
+        message: `Order completed! Transaction ${transactionNumber} created.`,
+      };
+    } catch (error) {
+      console.error('Failed to complete order:', error);
+      reply.status(400).send({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to complete order',
       });
     }
   });

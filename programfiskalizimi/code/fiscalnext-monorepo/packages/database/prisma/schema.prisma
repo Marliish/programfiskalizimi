@@ -97,6 +97,10 @@ model Tenant {
   wishlists               Wishlist[]
   WorkOrderOperation      WorkOrderOperation[]
   WorkOrder               WorkOrder[]
+  restaurantTables        RestaurantTable[]
+  restaurantOrders        RestaurantOrder[]
+  kitchenStations         KitchenStation[]
+  kitchenOrders           KitchenOrder[]
 
   @@map("tenants")
 }
@@ -218,6 +222,7 @@ model Product {
   transactionItems       TransactionItem[]
   wishlistItems          WishlistItem[]
   WorkOrder              WorkOrder[]
+  restaurantOrderItems   RestaurantOrderItem[]
 
   @@index([tenantId])
   @@index([barcode])
@@ -236,8 +241,9 @@ model Category {
   createdAt DateTime   @default(now()) @map("created_at")
   parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
   children  Category[] @relation("CategoryTree")
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  products  Product[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  products         Product[]
+  categoryStations CategoryStation[]
 
   @@index([tenantId])
   @@index([parentId])
@@ -429,6 +435,7 @@ model Customer {
   surveyResponses         SurveyResponse[]
   transactions            Transaction[]
   wishlists               Wishlist[]
+  restaurantOrders        RestaurantOrder[]
 
   @@index([tenantId])
   @@index([phone])
@@ -560,6 +567,7 @@ model Employee {
   performanceReviews    PerformanceReview[]
   timeOffRequests       TimeOffRequest[]
   trainingEnrollments   TrainingEnrollment[]
+  restaurantOrders      RestaurantOrder[]
 
   @@index([tenantId])
   @@index([employeeNumber])
@@ -3100,4 +3108,195 @@ model AuditSchedule {
   @@index([tenantId])
   @@index([nextScheduledDate])
   @@map("audit_schedules")
+}
+
+// ============================================
+// AUDIT LOGS
+// ============================================
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  userId       String?  @map("user_id")
+  action       String   @db.VarChar(100)
+  resourceType String   @map("resource_type") @db.VarChar(100)
+  resourceId   String?  @map("resource_id") @db.VarChar(255)
+  changes      Json?
+  ipAddress    String?  @map("ip_address") @db.VarChar(50)
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+// ============================================
+// RESTAURANT & KITCHEN DISPLAY SYSTEM
+// ============================================
+
+model RestaurantTable {
+  id           String            @id @default(uuid())
+  tenantId     String            @map("tenant_id")
+  tableNumber  String            @map("table_number")
+  tableName    String?           @map("table_name")
+  capacity     Int               @default(4)
+  section      String?
+  floor        String?
+  status       String            @default("available") // available, occupied, reserved, cleaning
+  positionX    Int?              @map("position_x")
+  positionY    Int?              @map("position_y")
+  shape        String            @default("square") // square, round, rectangle
+  isActive     Boolean           @default(true) @map("is_active")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  orders       RestaurantOrder[]
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, tableNumber])
+  @@index([tenantId])
+  @@index([status])
+  @@map("restaurant_tables")
+}
+
+model RestaurantOrder {
+  id               String                @id @default(uuid())
+  tenantId         String                @map("tenant_id")
+  orderNumber      String                @map("order_number")
+  tableId          String?               @map("table_id")
+  customerId       String?               @map("customer_id")
+  employeeId       String?               @map("employee_id")
+  orderType        String                @default("dine_in") @map("order_type") // dine_in, takeout, delivery
+  status           String                @default("open") // open, sent_to_kitchen, preparing, ready, served, paid, cancelled
+  guestCount       Int?                  @map("guest_count")
+  subtotal         Decimal               @default(0) @db.Decimal(10, 2)
+  taxAmount        Decimal               @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  discountAmount   Decimal               @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  tipAmount        Decimal               @default(0) @map("tip_amount") @db.Decimal(10, 2)
+  total            Decimal               @default(0) @db.Decimal(10, 2)
+  notes            String?
+  sentToKitchenAt  DateTime?             @map("sent_to_kitchen_at")
+  readyAt          DateTime?             @map("ready_at")
+  servedAt         DateTime?             @map("served_at")
+  paidAt           DateTime?             @map("paid_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  table            RestaurantTable?      @relation(fields: [tableId], references: [id])
+  customer         Customer?             @relation(fields: [customerId], references: [id])
+  employee         Employee?             @relation(fields: [employeeId], references: [id])
+  tenant           Tenant                @relation(fields: [tenantId], references: [id])
+  items            RestaurantOrderItem[]
+  kitchenOrders    KitchenOrder[]
+
+  @@index([tenantId])
+  @@index([tableId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("restaurant_orders")
+}
+
+model RestaurantOrderItem {
+  id            String             @id @default(uuid())
+  orderId       String             @map("order_id")
+  productId     String             @map("product_id")
+  productName   String             @map("product_name")
+  quantity      Int                @default(1)
+  unitPrice     Decimal            @map("unit_price") @db.Decimal(10, 2)
+  totalPrice    Decimal            @map("total_price") @db.Decimal(10, 2)
+  course        String?            // appetizer, main, dessert, drink
+  seatNumber    Int?               @map("seat_number")
+  status        String             @default("pending") // pending, preparing, ready, served, cancelled
+  notes         String?
+  sentToKitchenAt DateTime?        @map("sent_to_kitchen_at")
+  readyAt       DateTime?          @map("ready_at")
+  servedAt      DateTime?          @map("served_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  order         RestaurantOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product            @relation(fields: [productId], references: [id])
+  modifiers     OrderItemModifier[]
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([status])
+  @@map("restaurant_order_items")
+}
+
+model OrderItemModifier {
+  id              String              @id @default(uuid())
+  orderItemId     String              @map("order_item_id")
+  modifierId      String?             @map("modifier_id")
+  modifierName    String              @map("modifier_name")
+  priceAdjustment Decimal             @default(0) @map("price_adjustment") @db.Decimal(10, 2)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  orderItem       RestaurantOrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([orderItemId])
+  @@map("order_item_modifiers")
+}
+
+model KitchenStation {
+  id            String              @id @default(uuid())
+  tenantId      String              @map("tenant_id")
+  name          String
+  description   String?
+  stationType   String              @map("station_type") // grill, fryer, salads, desserts, bar, pizza
+  color         String              @default("#3b82f6")
+  displayOrder  Int                 @default(0) @map("display_order")
+  isActive      Boolean             @default(true) @map("is_active")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  tenant        Tenant              @relation(fields: [tenantId], references: [id])
+  kitchenOrders KitchenOrder[]
+  categoryStations CategoryStation[]
+
+  @@index([tenantId])
+  @@map("kitchen_stations")
+}
+
+model KitchenOrder {
+  id          String          @id @default(uuid())
+  tenantId    String          @map("tenant_id")
+  orderId     String          @map("order_id")
+  stationId   String          @map("station_id")
+  orderNumber String          @map("order_number")
+  tableNumber String          @map("table_number")
+  items       Json            @default("[]") // Array of items for this station
+  notes       String?
+  status      String          @default("pending") // pending, preparing, ready, served
+  priority    Int             @default(0) // 0=normal, 1=rush, 2=urgent
+  startedAt   DateTime?       @map("started_at")
+  readyAt     DateTime?       @map("ready_at")
+  servedAt    DateTime?       @map("served_at")
+  completedAt DateTime?       @map("completed_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  order       RestaurantOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  station     KitchenStation  @relation(fields: [stationId], references: [id])
+
+  @@index([tenantId])
+  @@index([orderId])
+  @@index([stationId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("kitchen_orders")
+}
+
+model CategoryStation {
+  id         String         @id @default(uuid())
+  categoryId String         @map("category_id")
+  stationId  String         @map("station_id")
+  priority   Int            @default(0)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  category   Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  station    KitchenStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, stationId])
+  @@index([categoryId])
+  @@index([stationId])
+  @@map("category_stations")
 }

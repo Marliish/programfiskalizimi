@@ -132,7 +132,15 @@ export default function ReportsPage() {
   const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
   const [productsReport, setProductsReport] = useState<ProductsReport | null>(null);
   const [revenueReport, setRevenueReport] = useState<RevenueReport | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('ALL');
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
+  const [currencyTimeSeries, setCurrencyTimeSeries] = useState<Record<string, Array<{ period: string; revenue: number }>>>({});
+  
+  // Exchange rates to ALL (Lek) - approximate
+  const exchangeRates: Record<string, number> = {
+    'ALL': 1,
+    'EUR': 100, // 1 EUR ≈ 100 ALL
+    'USD': 95,  // 1 USD ≈ 95 ALL
+  };
   
   // Supported currencies
   const currencies = [
@@ -212,6 +220,46 @@ export default function ReportsPage() {
         totalTax: 0,
         totalDiscount: 0,
       }));
+
+      // Calculate time series by currency
+      const timeSeriesByCurrency: Record<string, Map<string, number>> = {
+        'ALL': new Map(),
+        'EUR': new Map(),
+        'USD': new Map(),
+        'COMBINED': new Map(), // All converted to ALL
+      };
+
+      transactions.forEach((t: any) => {
+        if (t.status === 'completed' && t.items) {
+          const date = new Date(t.createdAt).toISOString().split('T')[0];
+          
+          t.items.forEach((item: any) => {
+            const currency = item.product?.currency || 'EUR';
+            const itemTotal = Number(item.unitPrice || 0) * Number(item.quantity || 0);
+            
+            // Add to currency-specific series
+            if (!timeSeriesByCurrency[currency]) {
+              timeSeriesByCurrency[currency] = new Map();
+            }
+            const current = timeSeriesByCurrency[currency].get(date) || 0;
+            timeSeriesByCurrency[currency].set(date, current + itemTotal);
+            
+            // Add to combined (converted to ALL)
+            const inALL = itemTotal * (exchangeRates[currency] || 1);
+            const currentCombined = timeSeriesByCurrency['COMBINED'].get(date) || 0;
+            timeSeriesByCurrency['COMBINED'].set(date, currentCombined + inALL);
+          });
+        }
+      });
+
+      // Convert maps to arrays
+      const currencyTimeSeriesData: Record<string, Array<{ period: string; revenue: number }>> = {};
+      Object.entries(timeSeriesByCurrency).forEach(([currency, dataMap]) => {
+        currencyTimeSeriesData[currency] = Array.from(dataMap.entries())
+          .map(([period, revenue]) => ({ period, revenue }))
+          .sort((a, b) => a.period.localeCompare(b.period));
+      });
+      setCurrencyTimeSeries(currencyTimeSeriesData);
 
       if (salesRes.data.success) {
         const report = salesRes.data.report;
@@ -380,7 +428,7 @@ export default function ReportsPage() {
                     <p className="text-sm text-gray-600">Total Sales ({selectedCurrency})</p>
                     <p className="text-2xl font-bold">
                       {formatCurrency(
-                        salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalSales || salesReport.summary.totalSales,
+                        salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalSales || 0,
                         selectedCurrency
                       )}
                     </p>
@@ -395,7 +443,7 @@ export default function ReportsPage() {
                   <div>
                     <p className="text-sm text-gray-600">Transactions</p>
                     <p className="text-2xl font-bold">
-                      {salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalTransactions || salesReport.summary.totalTransactions}
+                      {salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalTransactions || 0}
                     </p>
                   </div>
                 </div>
@@ -409,7 +457,7 @@ export default function ReportsPage() {
                     <p className="text-sm text-gray-600">Avg Order Value</p>
                     <p className="text-2xl font-bold">
                       {formatCurrency(
-                        salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.averageOrderValue || salesReport.summary.averageOrderValue,
+                        salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.averageOrderValue || 0,
                         selectedCurrency
                       )}
                     </p>
@@ -424,7 +472,7 @@ export default function ReportsPage() {
                   <div>
                     <p className="text-sm text-gray-600">Items Sold</p>
                     <p className="text-2xl font-bold">
-                      {salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalItems || salesReport.summary.totalItems}
+                      {salesReport.byCurrency?.find(c => c.currency === selectedCurrency)?.totalItems || 0}
                     </p>
                   </div>
                 </div>
@@ -437,8 +485,8 @@ export default function ReportsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {currencies.map((curr) => {
                   const currData = salesReport.byCurrency?.find(c => c.currency === curr.code);
-                  const total = currData?.totalSales || (curr.code === 'ALL' ? salesReport.summary.totalSales : 0);
-                  const transactions = currData?.totalTransactions || (curr.code === 'ALL' ? salesReport.summary.totalTransactions : 0);
+                  const total = currData?.totalSales || 0;
+                  const transactions = currData?.totalTransactions || 0;
                   return (
                     <div
                       key={curr.code}
@@ -460,46 +508,81 @@ export default function ReportsPage() {
           </>
         )}
 
-        {/* Revenue Trend Chart */}
-        {revenueReport && (
+        {/* Revenue Charts by Currency */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* EUR Chart */}
           <Card>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Revenue Trend</h2>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => handleExportCSV('revenue')}
-                className="flex items-center gap-2"
-              >
-                <FiDownload /> Export CSV
-              </Button>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={revenueReport.timeSeries}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
-                <YAxis />
-                <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  name="Revenue"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="cumulativeRevenue"
-                  stroke="#10B981"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  name="Cumulative"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <h2 className="text-lg font-semibold mb-4">💶 Euro (EUR) Revenue</h2>
+            {currencyTimeSeries['EUR']?.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={currencyTimeSeries['EUR']}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <Tooltip formatter={(value: any) => formatCurrency(Number(value), 'EUR')} />
+                  <Bar dataKey="revenue" fill="#3B82F6" name="EUR" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-gray-500">No EUR sales</div>
+            )}
           </Card>
-        )}
+
+          {/* ALL (Lek) Chart */}
+          <Card>
+            <h2 className="text-lg font-semibold mb-4">🇦🇱 Lek (ALL) Revenue</h2>
+            {currencyTimeSeries['ALL']?.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={currencyTimeSeries['ALL']}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <Tooltip formatter={(value: any) => formatCurrency(Number(value), 'ALL')} />
+                  <Bar dataKey="revenue" fill="#10B981" name="ALL" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-gray-500">No ALL sales</div>
+            )}
+          </Card>
+
+          {/* USD Chart */}
+          <Card>
+            <h2 className="text-lg font-semibold mb-4">💵 Dollar (USD) Revenue</h2>
+            {currencyTimeSeries['USD']?.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={currencyTimeSeries['USD']}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <Tooltip formatter={(value: any) => formatCurrency(Number(value), 'USD')} />
+                  <Bar dataKey="revenue" fill="#F59E0B" name="USD" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-gray-500">No USD sales</div>
+            )}
+          </Card>
+
+          {/* Combined (All in Lek) Chart */}
+          <Card>
+            <h2 className="text-lg font-semibold mb-4">📊 Combined Revenue (in Lek)</h2>
+            {currencyTimeSeries['COMBINED']?.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={currencyTimeSeries['COMBINED']}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <Tooltip formatter={(value: any) => formatCurrency(Number(value), 'ALL')} />
+                  <Bar dataKey="revenue" fill="#8B5CF6" name="Total (ALL)" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-gray-500">No sales</div>
+            )}
+            <p className="text-xs text-gray-500 mt-2">* EUR converted at 1€ = 100 ALL, USD at 1$ = 95 ALL</p>
+          </Card>
+        </div>
 
         {/* Best Selling Products */}
         {productsReport?.bestSellers && productsReport.bestSellers.length > 0 && (
@@ -580,7 +663,7 @@ export default function ReportsPage() {
         {salesReport && (
           <Card>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Sales Breakdown</h2>
+              <h2 className="text-lg font-semibold">Sales Breakdown <span className="text-sm font-normal text-gray-500">(totals in ALL)</span></h2>
               <Button
                 size="sm"
                 variant="secondary"

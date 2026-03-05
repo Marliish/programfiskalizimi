@@ -270,3 +270,74 @@ export const whatsappApi = {
   sendMessage: (to: string, message: string) => 
     api.post('/whatsapp/send-message', { to, message }),
 };
+
+// Kitchen Display System API
+export const kitchenApi = {
+  // Get all kitchen stations
+  getStations: async () => {
+    const response = await api.get('/kitchen/stations');
+    return response.data;
+  },
+  
+  // Create a new kitchen station
+  createStation: async (data: {
+    name: string;
+    stationType: string;
+    description?: string;
+    color?: string;
+    displayOrder?: number;
+  }) => {
+    const response = await api.post('/kitchen/stations', data);
+    return response.data;
+  },
+  
+  // Update a kitchen station
+  updateStation: async (id: string, data: Partial<{
+    name: string;
+    stationType: string;
+    description?: string;
+    color?: string;
+    displayOrder?: number;
+  }>) => {
+    const response = await api.put(`/kitchen/stations/${id}`, data);
+    return response.data;
+  },
+  
+  // Delete a kitchen station
+  deleteStation: async (id: string) => {
+    const response = await api.delete(`/kitchen/stations/${id}`);
+    return response.data;
+  },
+  
+  // Get kitchen orders (optionally filtered by station)
+  getOrders: async (stationId?: string) => {
+    const params: Record<string, string> = {};
+    if (stationId) params.stationId = stationId;
+    const response = await api.get('/kitchen/orders', { params });
+    return response.data;
+  },
+  
+  // Send an order to the kitchen
+  sendOrder: async (orderId: string, notes?: string) => {
+    const response = await api.post('/kitchen/send-order', { orderId, notes });
+    return response.data;
+  },
+  
+  // Update kitchen order status
+  updateOrderStatus: async (orderId: string, status: string) => {
+    const response = await api.patch(`/kitchen/orders/${orderId}/status`, { status });
+    return response.data;
+  },
+  
+  // Bump an order (mark as served and remove from display)
+  bumpOrder: async (kitchenOrderId: string) => {
+    const response = await api.post('/kitchen/bump', { kitchenOrderId });
+    return response.data;
+  },
+  
+  // Get kitchen stats
+  getStats: async () => {
+    const response = await api.get('/kitchen/stats');
+    return response.data;
+  },
+};

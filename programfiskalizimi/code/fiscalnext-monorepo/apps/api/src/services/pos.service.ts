@@ -203,10 +203,10 @@ export class POSService {
     const where: Prisma.TransactionWhereInput = {
       tenantId: params.tenantId,
       ...(params.status && { status: params.status }),
-      ...(params.fromDate && params.toDate && {
+      ...((params.fromDate || params.toDate) && {
         createdAt: {
-          gte: params.fromDate,
-          lte: params.toDate,
+          ...(params.fromDate && { gte: params.fromDate }),
+          ...(params.toDate && { lte: params.toDate }),
         },
       }),
     };

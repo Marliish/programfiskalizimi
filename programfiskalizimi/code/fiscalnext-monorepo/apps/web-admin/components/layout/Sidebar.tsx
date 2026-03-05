@@ -15,7 +15,8 @@ import {
   FiLayers,
   FiUserPlus,
   FiBell,
-  FiActivity
+  FiActivity,
+  FiMonitor
 } from 'react-icons/fi';
 import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
@@ -33,6 +34,8 @@ const navigation: Array<{
   { key: 'inventory', href: '/inventory', icon: FiLayers, permissions: ['inventory:view'] },
   { key: 'customers', href: '/customers', icon: FiUsers, permissions: ['admin:products'] },
   { key: 'employees', href: '/employees', icon: FiUserPlus, permissions: ['admin:employees'] },
+  { key: 'restaurant', href: '/restaurant', icon: FiShoppingCart, permissions: [] },
+  { key: 'kitchen', href: '/kitchen', icon: FiMonitor, permissions: [] },
   { key: 'notifications', href: '/notifications', icon: FiBell, permissions: [] },
   { key: 'fiscalReceipts', href: '/fiscal-receipts', icon: FiFileText, permissions: ['cash:reports'] },
   { key: 'auditLogs', href: '/audit-logs', icon: FiActivity, permissions: ['admin:settings'] },
